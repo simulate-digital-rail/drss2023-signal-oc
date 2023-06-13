@@ -3,7 +3,22 @@ name = "drss2023-signal-object-controller"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "sender"
+path = "src/sender.rs"
+
+[[bin]]
+name = "receiver"
+path = "src/main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sci-rs = { git = "https://github.com/ctiedt/rasta-rs" }
+rasta-sys = { git = "https://github.com/ctiedt/rasta-sys"}
+
+[dependencies.sci-rs]
+git = "https://github.com/mese96/rasta-rs"
+features = ["rasta"]
+
+[dependencies.rasta-rs]
+git = "https://github.com/mese96/rasta-rs"
