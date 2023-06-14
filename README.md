@@ -2,7 +2,13 @@
 
 ## Build Instructions
 
-To build for RevPi run:
+To build for RevPi, you need to have the `armv7-unknown-linux-gnueabihf` Rust target installed. Install it with:
+
+```
+rustup target add armv7-unknown-linux-gnueabihf
+```
+
+Then, to build the application run:
 
 ```
 cargo build --release
@@ -29,3 +35,8 @@ cargo build --target x86_64-unknown-linux-gnu
 
 Alternatively, use `cargo run` instead of `cargo build` in order to
 run the project directly.
+
+## Known issues
+
+When cross compiling from Ubuntu, there may be a glibc version mismatch with the Revolution Pi. To work around it, you can compile this project directly on the Revolution Pi.
+
