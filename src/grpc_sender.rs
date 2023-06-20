@@ -2,11 +2,14 @@ pub mod drss_2023_object_controller {
     tonic::include_proto!("sci");
 }
 
+use std::time::Duration;
+
 use drss_2023_object_controller::rasta_client::RastaClient;
 use drss_2023_object_controller::SciPacket;
-use futures_util::stream;
 use sci_rs::scils::SCILSBrightness;
 use sci_rs::{SCIMessageType, SCITelegram};
+use tokio::time;
+use tonic::Request;
 
 fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Option<SCITelegram> {
     if sci_telegram.message_type == SCIMessageType::scils_brightness_status() {
@@ -28,11 +31,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RastaClient::connect(format!("http://{}:{}", bridge_ip_addr, bridge_port)).await?;
     println!("Sender started!");
 
-    let packets = vec![SciPacket {
-        message: SCITelegram::scils_change_brightness("C", "S", SCILSBrightness::Night).into(),
-    }];
+    let outbound = async_stream::stream! {
+        let mut interval = time::interval(Duration::from_secs(1));
 
-    let response = client.stream(stream::iter(packets.clone())).await?;
+        while let time = interval.tick().await {
+            yield SciPacket {
+                message: SCITelegram::scils_change_brightness("C", "S", SCILSBrightness::Night).into(),
+            };
+        }
+    };
+
+    let response = client.stream(Request::new(outbound)).await?;
     let mut inbound = response.into_inner();
 
     while let Some(sci_packet) = inbound.message().await? {
