@@ -1,3 +1,5 @@
+mod oc_interface;
+
 pub mod drss_2023_object_controller {
     tonic::include_proto!("sci");
 }
@@ -8,7 +10,7 @@ use drss_2023_object_controller::rasta_server::{Rasta, RastaServer};
 use drss_2023_object_controller::SciPacket;
 use futures_core::Stream;
 use futures_util::StreamExt;
-use sci_rs::scils::SCILSBrightness;
+use sci_rs::scils::{SCILSBrightness, SCILSSignalAspect};
 use sci_rs::{SCIMessageType, SCITelegram};
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
@@ -55,6 +57,10 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Option<SCITelegram> {
             &*sci_telegram.sender,
             luminosity_change,
         ))
+    }else if sci_telegram.message_type == SCIMessageType::scils_show_signal_aspect() {
+        let status_change = SCILSSignalAspect::try_from(&sci_telegram.payload.data).unwrap();
+        oc_interface::show_signal_aspect(status_change);
+        None
     } else {
         None
     }
