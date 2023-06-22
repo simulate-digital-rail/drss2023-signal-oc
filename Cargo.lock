@@ -652,7 +652,7 @@ dependencies = [
 [[package]]
 name = "rasta-rs"
 version = "0.1.0"
-source = "git+https://github.com/mese96/rasta-rs#f0db7608ffe01f4fca77d3bfce78202db7c02193"
+source = "git+https://github.com/mese96/rasta-rs#3bbf0ca13fed4ec131473ace87c88169224a3bd4"
 dependencies = [
  "rand",
 ]
@@ -704,7 +704,7 @@ checksum = "4f3208ce4d8448b3f3e7d168a73f5e0c43a61e32930de3bceeccedb388b6bf06"
 [[package]]
 name = "sci-rs"
 version = "0.1.0"
-source = "git+https://github.com/mese96/rasta-rs#f0db7608ffe01f4fca77d3bfce78202db7c02193"
+source = "git+https://github.com/mese96/rasta-rs#3bbf0ca13fed4ec131473ace87c88169224a3bd4"
 dependencies = [
  "rasta-rs",
 ]
@@ -926,9 +926,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.24"
+version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f57e3ca2a01450b1a921183a9c9cbfda207fd822cef4ccb00a65402cbba7a74"
+checksum = "5f4f31f56159e98206da9efd823404b79b6ef3143b4a7ab76e67b1751b25a4ab"
 dependencies = [
  "proc-macro2",
  "quote",

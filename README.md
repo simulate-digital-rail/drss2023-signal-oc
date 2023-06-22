@@ -49,3 +49,10 @@ Run the following steps:
 * start the interlocking software (`grpc_sender`) with the command `cargo run --bin grpc_sender 127.0.0.1 50002` (gRPC client will connect to the server on port 50002)
 
 Note: For the real OC software, these steps should be automated using Docker, Bash scripts or the like.
+
+## Starting the rasta-rs example 
+* start the OC software (`main`) with the command `cargo run --bin receiver`
+* start the interlocking software (`sender`) with the command `cargo run --bin sender` 
+
+The sender can send the main aspect Hp0 or Ks1.
+Writing to the console and confirm with enter.
