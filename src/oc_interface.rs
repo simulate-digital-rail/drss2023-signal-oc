@@ -3,9 +3,7 @@ use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
 pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect){
     println!("Show signal aspect called");
     match signal_aspect.main() {
-        SCILSMain::Hp0 => {
-            println!("Signal shows Hp0")
-        }
+        SCILSMain::Hp0 => {}
         SCILSMain::Hp0PlusSh1 => {}
         SCILSMain::Hp0WithDrivingIndicator => {}
         SCILSMain::Ks1 => {
@@ -13,7 +11,9 @@ pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect){
         }
         SCILSMain::Ks1Flashing => {}
         SCILSMain::Ks1FlashingWithAdditionalLight => {}
-        SCILSMain::Ks2 => {}
+        SCILSMain::Ks2 => {
+            println!("Signal shows Ks2")
+        }
         SCILSMain::Ks2WithAdditionalLight => {}
         SCILSMain::Sh1 => {}
         SCILSMain::IdLight => {}

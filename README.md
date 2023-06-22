@@ -54,5 +54,5 @@ Note: For the real OC software, these steps should be automated using Docker, Ba
 * start the OC software (`main`) with the command `cargo run --bin receiver`
 * start the interlocking software (`sender`) with the command `cargo run --bin sender` 
 
-The sender can send the main aspect Hp0 or Ks1.
+The sender can send the main aspect Ks1 or Ks2.
 Writing to the console and confirm with enter.

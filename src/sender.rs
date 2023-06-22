@@ -19,8 +19,8 @@ fn main() {
     let target_luminosity = SCILSBrightness::Day;
     let mut current_luminosity = SCILSBrightness::Night;
 
-    let target_main_aspect = SCILSMain::Hp0;
-    let mut current_main_aspect = SCILSMain::Hp0;
+    let target_main_aspect = SCILSMain::Ks1;
+    let mut current_main_aspect = SCILSMain::Ks1;
 
 
     let lock = RwLock::new(target_main_aspect);
@@ -34,13 +34,13 @@ fn main() {
     thread::spawn(move || loop {
         input_string.clear();
         io::stdin().read_line(&mut input_string).unwrap();
-        if input_string.trim() == "Hp0" {
-            let mut locked_main_aspect = input_lock.write().unwrap();
-            *locked_main_aspect = SCILSMain::Hp0;
-        }
-        else if input_string.trim() == "Ks1" {
+        if input_string.trim() == "Ks1" {
             let mut locked_main_aspect = input_lock.write().unwrap();
             *locked_main_aspect = SCILSMain::Ks1;
+        }
+        else if input_string.trim() == "Ks2" {
+            let mut locked_main_aspect = input_lock.write().unwrap();
+            *locked_main_aspect = SCILSMain::Ks2;
         }
 
 
@@ -71,8 +71,8 @@ fn main() {
             //println!("ts_sending: {:?} ", locked_main_aspect);
             if current_main_aspect != *locked_main_aspect {
                 println!("sending telegram now");
-                if *locked_main_aspect == SCILSMain::Hp0 { println!("ts_sending Hp0")}
                 if *locked_main_aspect == SCILSMain::Ks1 { println!("ts_sending Ks1")}
+                if *locked_main_aspect == SCILSMain::Ks2 { println!("ts_sending Ks2")}
                 current_main_aspect = *locked_main_aspect;
 
                 let signal_aspect = SCILSSignalAspect::new(
