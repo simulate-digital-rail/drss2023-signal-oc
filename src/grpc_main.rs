@@ -10,7 +10,7 @@ use drss_2023_object_controller::rasta_server::{Rasta, RastaServer};
 use drss_2023_object_controller::SciPacket;
 use futures_core::Stream;
 use futures_util::StreamExt;
-use sci_rs::scils::{SCILSBrightness, SCILSSignalAspect};
+use sci_rs::scils::SCILSSignalAspect;
 use sci_rs::{SCIMessageType, SCITelegram};
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
@@ -46,21 +46,19 @@ impl Rasta for RastaService {
 }
 
 fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Option<SCITelegram> {
-    if sci_telegram.message_type == SCIMessageType::scils_change_brightness() {
-        let luminosity_change = SCILSBrightness::try_from(sci_telegram.payload.data[0]).unwrap();
+    if sci_telegram.message_type == SCIMessageType::scils_show_signal_aspect() {
+        let status_change = SCILSSignalAspect::try_from(sci_telegram.payload.data.as_slice()).unwrap();
         println!(
-            "Received change brightness telegram: changing to {:?} (from {}, to {})",
-            luminosity_change, sci_telegram.sender, sci_telegram.receiver
+            "Received show signal aspect telegram: changing main to {:?} (from {}, to {})",
+            status_change.main(), sci_telegram.sender, sci_telegram.receiver
         );
-        Some(SCITelegram::scils_brightness_status(
+        println!("Should show signal aspect");
+        oc_interface::show_signal_aspect(status_change);
+        Some(SCITelegram::scils_signal_aspect_status(
             &*sci_telegram.receiver,
             &*sci_telegram.sender,
-            luminosity_change,
+            oc_interface::signal_aspect_status(),
         ))
-    }else if sci_telegram.message_type == SCIMessageType::scils_show_signal_aspect() {
-        let status_change = SCILSSignalAspect::try_from(&sci_telegram.payload.data).unwrap();
-        oc_interface::show_signal_aspect(status_change);
-        None
     } else {
         None
     }
