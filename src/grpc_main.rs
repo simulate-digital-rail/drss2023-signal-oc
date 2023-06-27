@@ -1,15 +1,15 @@
 mod oc_interface;
 
-pub mod drss_2023_object_controller {
+pub mod rasta_grpc {
     tonic::include_proto!("sci");
 }
 
 use std::pin::Pin;
 
-use drss_2023_object_controller::rasta_server::{Rasta, RastaServer};
-use drss_2023_object_controller::SciPacket;
 use futures_core::Stream;
 use futures_util::StreamExt;
+use rasta_grpc::rasta_server::{Rasta, RastaServer};
+use rasta_grpc::SciPacket;
 use sci_rs::scils::SCILSSignalAspect;
 use sci_rs::{SCIMessageType, SCITelegram};
 use tonic::transport::Server;
@@ -47,10 +47,13 @@ impl Rasta for RastaService {
 
 fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Option<SCITelegram> {
     if sci_telegram.message_type == SCIMessageType::scils_show_signal_aspect() {
-        let status_change = SCILSSignalAspect::try_from(sci_telegram.payload.data.as_slice()).unwrap();
+        let status_change =
+            SCILSSignalAspect::try_from(sci_telegram.payload.data.as_slice()).unwrap();
         println!(
             "Received show signal aspect telegram: changing main to {:?} (from {}, to {})",
-            status_change.main(), sci_telegram.sender, sci_telegram.receiver
+            status_change.main(),
+            sci_telegram.sender,
+            sci_telegram.receiver
         );
         println!("Should show signal aspect");
         oc_interface::show_signal_aspect(status_change);

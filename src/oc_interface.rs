@@ -1,6 +1,6 @@
 use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
 
-pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect){
+pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect) {
     println!("Show signal aspect called");
     match signal_aspect.main() {
         SCILSMain::Hp0 => {}
@@ -28,7 +28,7 @@ pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect){
 }
 
 pub fn signal_aspect_status() -> SCILSSignalAspect {
-    let nationally_specified_information = [0u8;9];
+    let nationally_specified_information = [0u8; 9];
     //TODO returning actual status
     let signal_aspect = SCILSSignalAspect::new(
         SCILSMain::Ks1,
@@ -41,7 +41,7 @@ pub fn signal_aspect_status() -> SCILSSignalAspect {
         Default::default(),
         Default::default(),
         Default::default(),
-        nationally_specified_information
+        nationally_specified_information,
     );
     signal_aspect
 }
