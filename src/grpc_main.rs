@@ -10,10 +10,12 @@ use futures_core::Stream;
 use futures_util::StreamExt;
 use rasta_grpc::rasta_server::{Rasta, RastaServer};
 use rasta_grpc::SciPacket;
-use sci_rs::scils::SCILSSignalAspect;
-use sci_rs::{SCIMessageType, SCITelegram};
+use sci_rs::scils::{SCILSBrightness, SCILSSignalAspect};
+use sci_rs::{ProtocolType, SCIMessageType, SCITelegram, SCIVersionCheckResult};
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
+
+const SCI_LS_VERSION: u8 = 0x03;
 
 #[derive(Debug)]
 struct RastaService;
@@ -33,10 +35,10 @@ impl Rasta for RastaService {
                 let sci_packet = sci_packet?;
                 let sci_telegram = sci_packet.message.as_slice().try_into()
                     .unwrap_or_else(|e| panic!("Could not convert packet into SCITelegram: {:?}", e));
-                if let Some(sci_response) = handle_incoming_telegram(sci_telegram) {
+                for response in handle_incoming_telegram(sci_telegram) {
                     yield SciPacket {
-                        message: sci_response.into()
-                    };
+                        message: response.into()
+                    }
                 }
             }
         };
@@ -45,7 +47,15 @@ impl Rasta for RastaService {
     }
 }
 
-fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Option<SCITelegram> {
+fn check_version(sender_version: u8) -> SCIVersionCheckResult {
+    if sender_version == SCI_LS_VERSION {
+        SCIVersionCheckResult::VersionsAreEqual
+    } else {
+        SCIVersionCheckResult::VersionsAreNotEqual
+    }
+}
+
+fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
     if sci_telegram.message_type == SCIMessageType::scils_show_signal_aspect() {
         let status_change =
             SCILSSignalAspect::try_from(sci_telegram.payload.data.as_slice()).unwrap();
@@ -57,13 +67,57 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Option<SCITelegram> {
         );
         println!("Should show signal aspect");
         oc_interface::show_signal_aspect(status_change);
-        Some(SCITelegram::scils_signal_aspect_status(
+        vec![SCITelegram::scils_signal_aspect_status(
             &*sci_telegram.receiver,
             &*sci_telegram.sender,
             oc_interface::signal_aspect_status(),
-        ))
+        )]
+    } else if sci_telegram.message_type == SCIMessageType::scils_change_brightness() {
+        println!(
+            "Interlocking commanded to change brightness, but this is not implemented for this OC!"
+        );
+        vec![]
+    } else if sci_telegram.message_type == SCIMessageType::sci_version_request() {
+        vec![SCITelegram::version_response(
+            ProtocolType::SCIProtocolLS,
+            &*sci_telegram.receiver,
+            &*sci_telegram.sender,
+            SCI_LS_VERSION,
+            check_version(sci_telegram.payload.data[0]),
+            &[0],
+        )]
+    } else if sci_telegram.message_type == SCIMessageType::sci_status_request() {
+        vec![
+            SCITelegram::status_begin(
+                ProtocolType::SCIProtocolLS,
+                &*sci_telegram.receiver,
+                &*sci_telegram.sender,
+            ),
+            SCITelegram::scils_signal_aspect_status(
+                &*sci_telegram.receiver,
+                &*sci_telegram.sender,
+                oc_interface::signal_aspect_status(),
+            ),
+            SCITelegram::scils_brightness_status(
+                &*sci_telegram.receiver,
+                &*sci_telegram.sender,
+                SCILSBrightness::Day,
+            ),
+            SCITelegram::status_finish(
+                ProtocolType::SCIProtocolLS,
+                &*sci_telegram.receiver,
+                &*sci_telegram.sender,
+            ),
+        ]
     } else {
-        None
+        println!(
+            "Cannot handle received telegram of type {}!",
+            sci_telegram
+                .message_type
+                .try_as_sci_message_type()
+                .unwrap_or("UNKNOWN")
+        );
+        vec![]
     }
 }
 
