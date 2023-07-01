@@ -11,10 +11,23 @@ path = "src/sender.rs"
 name = "receiver"
 path = "src/main.rs"
 
+[[bin]]
+name = "grpc_sender"
+path = "src/grpc_sender.rs"
+
+[[bin]]
+name = "grpc_main"
+path = "src/grpc_main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rasta-sys = { git = "https://github.com/ctiedt/rasta-sys"}
+tonic = "0.9"
+prost = "0.11"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+futures-core = "0.3"
+futures-util = "0.3"
+async-stream = "0.2"
 
 [dependencies.sci-rs]
 git = "https://github.com/mese96/rasta-rs"
@@ -22,3 +35,6 @@ features = ["rasta"]
 
 [dependencies.rasta-rs]
 git = "https://github.com/mese96/rasta-rs"
+
+[build-dependencies]
+tonic-build = "0.9"
