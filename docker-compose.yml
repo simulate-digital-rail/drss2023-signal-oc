@@ -2,9 +2,7 @@ version: '3'
 
 services:
   oc_bridge:
-      build:
-        context: rasta-protocol
-        dockerfile: docker/rasta_grpc_bridge/Dockerfile.udp
+      image: ghcr.io/eulynx-live/rasta-protocol/rasta_grpc_bridge_udp:main
       command:
         - /var/rasta.cfg
         - 0.0.0.0:4242
@@ -22,9 +20,8 @@ services:
           ipv4_address: 172.24.0.2
 
   interlocking_bridge:
-      build:
-        context: rasta-protocol
-        dockerfile: docker/rasta_grpc_bridge/Dockerfile.udp
+      depends_on: [oc_bridge]
+      image: ghcr.io/eulynx-live/rasta-protocol/rasta_grpc_bridge_udp:main
       command:
         - /var/rasta.cfg
         - 0.0.0.0:50002
