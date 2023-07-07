@@ -8,17 +8,19 @@ use std::pin::Pin;
 
 use futures_core::Stream;
 use futures_util::StreamExt;
+use md5;
 use rasta_grpc::rasta_server::{Rasta, RastaServer};
 use rasta_grpc::SciPacket;
-use sci_rs::scils::{SCILSBrightness, SCILSSignalAspect};
+use sci_rs::scils::{SCILSBrightness, SCILSMain, SCILSSignalAspect};
 use sci_rs::{ProtocolType, SCIMessageType, SCITelegram, SCIVersionCheckResult};
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 
 const SCI_LS_VERSION: u8 = 0x03;
 
-#[derive(Debug)]
-struct RastaService;
+struct RastaService {
+    most_restrictive_aspect: SCILSSignalAspect
+}
 
 #[tonic::async_trait]
 impl Rasta for RastaService {
@@ -29,6 +31,7 @@ impl Rasta for RastaService {
         request: Request<tonic::Streaming<SciPacket>>,
     ) -> Result<Response<Self::StreamStream>, Status> {
         let mut stream = request.into_inner();
+        let cloned_most_restrictive_aspect = self.most_restrictive_aspect.clone();
 
         let output = async_stream::try_stream! {
             while let Some(sci_packet) = stream.next().await {
@@ -41,6 +44,9 @@ impl Rasta for RastaService {
                     }
                 }
             }
+
+            // fallback when connection is interrupted
+            oc_interface::show_signal_aspect(cloned_most_restrictive_aspect);
         };
 
         Ok(Response::new(Box::pin(output) as Self::StreamStream))
@@ -53,6 +59,14 @@ fn check_version(sender_version: u8) -> SCIVersionCheckResult {
     } else {
         SCIVersionCheckResult::VersionsAreNotEqual
     }
+}
+
+// MD5 (16 bytes)
+fn compute_checksum(pseudo_telegram: SCITelegram) -> Vec<u8> {
+    let checksum = md5::compute::<Vec<u8>>(pseudo_telegram.into());
+    let mut checksum_vec = vec![checksum.len().try_into().unwrap()];
+    checksum_vec.append(&mut Vec::from(checksum.as_slice()));
+    checksum_vec
 }
 
 fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
@@ -78,14 +92,34 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
         );
         vec![]
     } else if sci_telegram.message_type == SCIMessageType::sci_version_request() {
-        vec![SCITelegram::version_response(
-            ProtocolType::SCIProtocolLS,
-            &*sci_telegram.receiver,
-            &*sci_telegram.sender,
-            SCI_LS_VERSION,
-            check_version(sci_telegram.payload.data[0]),
-            &[0],
-        )]
+        let check_result = check_version(sci_telegram.payload.data[0]);
+        if check_result == SCIVersionCheckResult::VersionsAreEqual {
+            let checksum = compute_checksum(SCITelegram::version_response(
+                ProtocolType::SCIProtocolLS,
+                &*sci_telegram.receiver,
+                &*sci_telegram.sender,
+                SCI_LS_VERSION,
+                check_version(sci_telegram.payload.data[0]),
+                &[0],
+            ));
+            return vec![SCITelegram::version_response(
+                ProtocolType::SCIProtocolLS,
+                &*sci_telegram.receiver,
+                &*sci_telegram.sender,
+                SCI_LS_VERSION,
+                check_version(sci_telegram.payload.data[0]),
+                checksum.as_slice()
+            )]
+        } else {
+            vec![SCITelegram::version_response(
+                ProtocolType::SCIProtocolLS,
+                &*sci_telegram.receiver,
+                &*sci_telegram.sender,
+                SCI_LS_VERSION,
+                check_version(sci_telegram.payload.data[0]),
+                &[0],
+            )]
+        }
     } else if sci_telegram.message_type == SCIMessageType::sci_status_request() {
         vec![
             SCITelegram::status_begin(
@@ -123,14 +157,33 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let most_restrictive_aspect = SCILSSignalAspect::new(
+        SCILSMain::Ks2,
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        [0u8; 9]
+    );
+
     let server_ip_addr = std::env::args().nth(1).unwrap();
     let server_port = std::env::args().nth(2).unwrap();
     let addr = format!("{}:{}", server_ip_addr, server_port)
         .parse()
         .unwrap();
 
+    // establish initial state of outputs
+    oc_interface::show_signal_aspect(most_restrictive_aspect.clone());
+
     println!("Starting receiver!");
-    let rasta_service = RastaService;
+    let rasta_service = RastaService{
+        most_restrictive_aspect: most_restrictive_aspect.clone()
+    };
     let server = RastaServer::new(rasta_service);
     Server::builder().add_service(server).serve(addr).await?;
 

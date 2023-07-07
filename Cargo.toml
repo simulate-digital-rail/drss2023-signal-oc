@@ -28,6 +28,7 @@ tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 futures-core = "0.3"
 futures-util = "0.3"
 async-stream = "0.2"
+md5 = "0.7.0"
 
 [dependencies.sci-rs]
 git = "https://github.com/mese96/rasta-rs"
