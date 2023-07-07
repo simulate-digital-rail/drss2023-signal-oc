@@ -10,21 +10,52 @@ use std::{io, thread};
 
 use rasta_grpc::rasta_client::RastaClient;
 use rasta_grpc::SciPacket;
-use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
-use sci_rs::{SCIMessageType, SCITelegram};
+use sci_rs::scils::{SCILSMain, SCILSSignalAspect, SCILSBrightness};
+use sci_rs::{SCIMessageType, SCITelegram, SCIVersionCheckResult};
 use tokio::time;
 use tonic::Request;
 
+const SCI_LS_VERSION : u8 = 0x03;
+
+fn check_checksum(_sci_telegram: &SCITelegram, _checksum: &[u8]) -> bool {
+    // TODO compute + compare checksum
+    true
+}
+
 fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Option<SCITelegram> {
     if sci_telegram.message_type == SCIMessageType::scils_signal_aspect_status() {
-        let changed_signal_aspect =
+        let new_signal_aspect =
             SCILSSignalAspect::try_from(sci_telegram.payload.data.as_slice()).unwrap();
         println!(
-            "Received signal aspect status telegram: main was changed to {:?} (from {}, to {})",
-            changed_signal_aspect.main(),
+            "Received signal aspect status telegram: main is now {:?} (from {}, to {})",
+            new_signal_aspect.main(),
             sci_telegram.sender,
             sci_telegram.receiver
         );
+        // TODO save to state
+    } else if sci_telegram.message_type == SCIMessageType::scils_brightness_status() {
+        let new_brightness = SCILSBrightness::try_from(sci_telegram.payload.data[0]).unwrap();
+        println!(
+            "Received brightness status telegram: brightness is now {:?} (from {}, to {})",
+            new_brightness,
+            sci_telegram.sender,
+            sci_telegram.receiver
+        );
+        // TODO save to state
+    } else if sci_telegram.message_type == SCIMessageType::sci_version_response() {
+        let remote_version = sci_telegram.payload.data[0];
+        let remote_check_result: SCIVersionCheckResult = sci_telegram.payload.data[1].try_into().unwrap();
+        let _checksum_len = sci_telegram.payload.data[1]; // TODO check only if len > 0
+        let checksum = &sci_telegram.payload.data[3..]; // TODO cut off at checksum_len
+        if remote_check_result == SCIVersionCheckResult::VersionsAreEqual && remote_version == SCI_LS_VERSION && check_checksum(&sci_telegram, checksum) {
+            // everything okay
+        } else {
+            // TODO end connection
+        }
+    } else if sci_telegram.message_type == SCIMessageType::sci_status_begin() {
+        // TODO set into "receiving status" mode (flag)?
+    } else if sci_telegram.message_type == SCIMessageType::sci_status_finish() {
+        // TODO unset mode, check that status telegrams were received?
     }
     None
 }
@@ -60,6 +91,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         thread::sleep(Duration::from_millis(1000));
     });
 
+    // TODO we need to begin with sending a version request
+    // TODO sending needs to be refactored (take telegrams out of send queue, so they can be added anywhere)
+    // TODO only send "show signal aspect" telegrams after connection established
     let outbound = async_stream::stream! {
         let mut interval = time::interval(Duration::from_secs(1));
         while let time = interval.tick().await {
@@ -106,6 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         if let Some(_sci_response) = handle_incoming_telegram(sci_telegram) {
             // TODO: here, we could send a response back, but currently, we don't
+            // TODO: add response to send queue
         }
     }
 
