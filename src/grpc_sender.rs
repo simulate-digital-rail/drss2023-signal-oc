@@ -10,52 +10,113 @@ use std::{io, thread};
 
 use rasta_grpc::rasta_client::RastaClient;
 use rasta_grpc::SciPacket;
-use sci_rs::scils::{SCILSMain, SCILSSignalAspect, SCILSBrightness};
-use sci_rs::{SCIMessageType, SCITelegram, SCIVersionCheckResult};
+use sci_rs::scils::{SCILSBrightness, SCILSMain, SCILSSignalAspect};
+use sci_rs::{ProtocolType, SCIMessageType, SCITelegram, SCIVersionCheckResult};
 use tokio::time;
 use tonic::Request;
 
-const SCI_LS_VERSION : u8 = 0x03;
+const SCI_LS_VERSION: u8 = 0x03;
 
-fn check_checksum(_sci_telegram: &SCITelegram, _checksum: &[u8]) -> bool {
-    // TODO compute + compare checksum
-    true
+#[derive(PartialEq)]
+enum OCConnectionState {
+    Unconnected,          // nothing happened so far
+    VersionRequestSent,   // version request sent, awaiting version response
+    StatusRequestSent,    // version response received, status request sent
+    StatusBeginReceived,  // status begin received, awaiting signal aspect
+    SignalAspectReceived, // signal aspect received, awaiting brightness
+    BrightnessReceived,   // status transmission, awaiting status finish
+    Connected,            // handshake completed successfully
 }
 
-fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Option<SCITelegram> {
-    if sci_telegram.message_type == SCIMessageType::scils_signal_aspect_status() {
+struct OCState {
+    confirmed_signal_aspect: Option<SCILSSignalAspect>,
+    confirmed_brightness: Option<SCILSBrightness>,
+    conn_state: OCConnectionState,
+}
+
+fn check_checksum(
+    sci_telegram: &SCITelegram,
+    received_checksum: &[u8],
+    remote_version: u8,
+    remote_check_result: SCIVersionCheckResult,
+) -> bool {
+    let pseudo_telegram = SCITelegram::version_response(
+        ProtocolType::SCIProtocolLS,
+        &*sci_telegram.sender,
+        &*sci_telegram.receiver,
+        remote_version,
+        remote_check_result,
+        &[0],
+    );
+    let computed_checksum = md5::compute::<Vec<u8>>(pseudo_telegram.into());
+    computed_checksum.as_slice() == received_checksum
+}
+
+fn handle_incoming_telegram(sci_telegram: SCITelegram, state: &mut OCState) -> Option<SCITelegram> {
+    if sci_telegram.message_type == SCIMessageType::scils_signal_aspect_status()
+        && (state.conn_state == OCConnectionState::StatusBeginReceived
+            || state.conn_state == OCConnectionState::Connected)
+    {
         let new_signal_aspect =
             SCILSSignalAspect::try_from(sci_telegram.payload.data.as_slice()).unwrap();
         println!(
-            "Received signal aspect status telegram: main is now {:?} (from {}, to {})",
+            "Received signal aspect status telegram: main is now {:?}",
             new_signal_aspect.main(),
-            sci_telegram.sender,
-            sci_telegram.receiver
         );
-        // TODO save to state
-    } else if sci_telegram.message_type == SCIMessageType::scils_brightness_status() {
+        state.confirmed_signal_aspect = Some(new_signal_aspect);
+        if state.conn_state == OCConnectionState::StatusBeginReceived {
+            state.conn_state = OCConnectionState::SignalAspectReceived;
+        }
+    } else if sci_telegram.message_type == SCIMessageType::scils_brightness_status()
+        && (state.conn_state == OCConnectionState::SignalAspectReceived
+            || state.conn_state == OCConnectionState::Connected)
+    {
         let new_brightness = SCILSBrightness::try_from(sci_telegram.payload.data[0]).unwrap();
         println!(
-            "Received brightness status telegram: brightness is now {:?} (from {}, to {})",
-            new_brightness,
-            sci_telegram.sender,
-            sci_telegram.receiver
+            "Received brightness status telegram: brightness is now {:?}",
+            new_brightness
         );
-        // TODO save to state
-    } else if sci_telegram.message_type == SCIMessageType::sci_version_response() {
-        let remote_version = sci_telegram.payload.data[0];
-        let remote_check_result: SCIVersionCheckResult = sci_telegram.payload.data[1].try_into().unwrap();
-        let _checksum_len = sci_telegram.payload.data[1]; // TODO check only if len > 0
-        let checksum = &sci_telegram.payload.data[3..]; // TODO cut off at checksum_len
-        if remote_check_result == SCIVersionCheckResult::VersionsAreEqual && remote_version == SCI_LS_VERSION && check_checksum(&sci_telegram, checksum) {
-            // everything okay
-        } else {
-            // TODO end connection
+        state.confirmed_brightness = Some(new_brightness);
+        if state.conn_state == OCConnectionState::SignalAspectReceived {
+            state.conn_state = OCConnectionState::BrightnessReceived;
         }
-    } else if sci_telegram.message_type == SCIMessageType::sci_status_begin() {
-        // TODO set into "receiving status" mode (flag)?
-    } else if sci_telegram.message_type == SCIMessageType::sci_status_finish() {
-        // TODO unset mode, check that status telegrams were received?
+    } else if sci_telegram.message_type == SCIMessageType::sci_version_response()
+        && state.conn_state == OCConnectionState::VersionRequestSent
+    {
+        let remote_version = sci_telegram.payload.data[0];
+        let remote_check_result: SCIVersionCheckResult =
+            sci_telegram.payload.data[1].try_into().unwrap();
+        let checksum_len: usize = sci_telegram.payload.data[1].into();
+        let checksum = &sci_telegram.payload.data[3..3 + checksum_len];
+        if remote_check_result == SCIVersionCheckResult::VersionsAreEqual
+            && remote_version == SCI_LS_VERSION
+            && checksum_len > 0
+            && check_checksum(&sci_telegram, checksum, remote_version, remote_check_result)
+        {
+            state.conn_state = OCConnectionState::StatusRequestSent;
+            return Some(SCITelegram::status_request(
+                ProtocolType::SCIProtocolLS,
+                &*sci_telegram.receiver,
+                &*sci_telegram.sender,
+            ));
+        } else {
+            println!(
+                "Versions are not matching (peer has version {}, we have version {})!",
+                remote_version, SCI_LS_VERSION
+            );
+            // TODO how to end connection?
+        }
+    } else if sci_telegram.message_type == SCIMessageType::sci_status_begin()
+        && state.conn_state == OCConnectionState::StatusRequestSent
+    {
+        state.conn_state = OCConnectionState::StatusBeginReceived;
+    } else if sci_telegram.message_type == SCIMessageType::sci_status_finish()
+        && state.conn_state == OCConnectionState::BrightnessReceived
+    {
+        state.conn_state = OCConnectionState::Connected;
+    } else {
+        println!("The received packet of type {} is either unrecognized or was received in the wrong order during handshake!", sci_telegram.message_type.try_as_sci_message_type().unwrap_or("UNKNOWN"));
+        // TODO optionally end connection?
     }
     None
 }
@@ -76,6 +137,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let lock = RwLock::new(requested_main_aspect);
     let send_lock = Arc::new(lock);
     let input_lock = send_lock.clone();
+
+    let mut oc_state = OCState {
+        confirmed_signal_aspect: None,
+        confirmed_brightness: None,
+        conn_state: OCConnectionState::Unconnected,
+    };
 
     let mut input_string = String::new();
     thread::spawn(move || loop {
@@ -138,7 +205,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .try_into()
             .unwrap_or_else(|e| panic!("Could not convert packet into SCITelegram: {:?}", e));
 
-        if let Some(_sci_response) = handle_incoming_telegram(sci_telegram) {
+        if let Some(_sci_response) = handle_incoming_telegram(sci_telegram, &mut oc_state) {
             // TODO: here, we could send a response back, but currently, we don't
             // TODO: add response to send queue
         }

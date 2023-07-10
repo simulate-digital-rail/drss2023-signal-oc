@@ -19,7 +19,7 @@ use tonic::{Request, Response, Status};
 const SCI_LS_VERSION: u8 = 0x03;
 
 struct RastaService {
-    most_restrictive_aspect: SCILSSignalAspect
+    most_restrictive_aspect: SCILSSignalAspect,
 }
 
 #[tonic::async_trait]
@@ -108,8 +108,8 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
                 &*sci_telegram.sender,
                 SCI_LS_VERSION,
                 check_version(sci_telegram.payload.data[0]),
-                checksum.as_slice()
-            )]
+                checksum.as_slice(),
+            )];
         } else {
             vec![SCITelegram::version_response(
                 ProtocolType::SCIProtocolLS,
@@ -168,7 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Default::default(),
         Default::default(),
         Default::default(),
-        [0u8; 9]
+        [0u8; 9],
     );
 
     let server_ip_addr = std::env::args().nth(1).unwrap();
@@ -181,8 +181,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     oc_interface::show_signal_aspect(most_restrictive_aspect.clone());
 
     println!("Starting receiver!");
-    let rasta_service = RastaService{
-        most_restrictive_aspect: most_restrictive_aspect.clone()
+    let rasta_service = RastaService {
+        most_restrictive_aspect: most_restrictive_aspect.clone(),
     };
     let server = RastaServer::new(rasta_service);
     Server::builder().add_service(server).serve(addr).await?;
