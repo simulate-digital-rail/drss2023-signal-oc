@@ -19,7 +19,7 @@ use tonic::Request;
 const SEND_INTERVAL_MS: u64 = 500;
 const SCI_LS_VERSION: u8 = 0x03;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 enum OCConnectionState {
     Unconnected,          // nothing happened so far
     VersionRequestSent,   // version request sent, awaiting version response
@@ -28,6 +28,7 @@ enum OCConnectionState {
     SignalAspectReceived, // signal aspect received, awaiting brightness
     BrightnessReceived,   // status transmission, awaiting status finish
     Connected,            // handshake completed successfully
+    Terminated,           // closed forcefully because of errors
 }
 
 struct OCState {
@@ -48,7 +49,7 @@ fn create_telegram_from_main(main: SCILSMain) -> SCITelegram {
         Default::default(),
         Default::default(),
         Default::default(),
-        [0u8; 9]
+        [0u8; 9],
     );
     SCITelegram::scils_show_signal_aspect("C", "S", signal_aspect)
 }
@@ -124,7 +125,7 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram, state: &mut OCState) -> O
                 "Versions are not matching (peer has version {}, we have version {})!",
                 remote_version, SCI_LS_VERSION
             );
-            // TODO how to end connection?
+            state.conn_state = OCConnectionState::Terminated;
         }
     } else if sci_telegram.message_type == SCIMessageType::sci_status_begin()
         && state.conn_state == OCConnectionState::StatusRequestSent
@@ -136,7 +137,7 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram, state: &mut OCState) -> O
         state.conn_state = OCConnectionState::Connected;
     } else {
         println!("The received packet of type {} is either unrecognized or was received in the wrong order during handshake!", sci_telegram.message_type.try_as_sci_message_type().unwrap_or("UNKNOWN"));
-        // TODO optionally end connection?
+        state.conn_state = OCConnectionState::Terminated;
     }
     None
 }
@@ -159,9 +160,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let lock_state = RwLock::new(oc_state);
     let input_lock_state = Arc::new(lock_state);
     let receive_lock_state = input_lock_state.clone();
+    let send_lock_state = input_lock_state.clone();
 
     // begin handshake with sending a version request
-    let send_queue: VecDeque<SCITelegram> = VecDeque::from([SCITelegram::version_request(ProtocolType::SCIProtocolLS, "C", "S", SCI_LS_VERSION)]);
+    let send_queue: VecDeque<SCITelegram> = VecDeque::from([SCITelegram::version_request(
+        ProtocolType::SCIProtocolLS,
+        "C",
+        "S",
+        SCI_LS_VERSION,
+    )]);
 
     let lock_queue = RwLock::new(send_queue);
     let input_lock_queue = Arc::new(lock_queue);
@@ -175,11 +182,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let locked_oc_state = input_lock_state.read().unwrap();
         let mut locked_send_queue = input_lock_queue.write().unwrap();
         if locked_oc_state.conn_state == OCConnectionState::Connected {
-            if input_string.trim() == "Ks1" && locked_oc_state.confirmed_signal_aspect.as_ref().unwrap().main() != SCILSMain::Ks1  {
+            if input_string.trim() == "Ks1"
+                && locked_oc_state
+                    .confirmed_signal_aspect
+                    .as_ref()
+                    .unwrap()
+                    .main()
+                    != SCILSMain::Ks1
+            {
                 locked_send_queue.push_back(create_telegram_from_main(SCILSMain::Ks1));
-            } else if input_string.trim() == "Ks2" && locked_oc_state.confirmed_signal_aspect.as_ref().unwrap().main() != SCILSMain::Ks2 {
+            } else if input_string.trim() == "Ks2"
+                && locked_oc_state
+                    .confirmed_signal_aspect
+                    .as_ref()
+                    .unwrap()
+                    .main()
+                    != SCILSMain::Ks2
+            {
                 locked_send_queue.push_back(create_telegram_from_main(SCILSMain::Ks2));
-            } else if input_string.trim() == "Off" && locked_oc_state.confirmed_signal_aspect.as_ref().unwrap().main() != SCILSMain::Off {
+            } else if input_string.trim() == "Off"
+                && locked_oc_state
+                    .confirmed_signal_aspect
+                    .as_ref()
+                    .unwrap()
+                    .main()
+                    != SCILSMain::Off
+            {
                 locked_send_queue.push_back(create_telegram_from_main(SCILSMain::Off));
             }
         } else {
@@ -193,7 +221,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         while let time = interval.tick().await {
             let mut message = Vec::new();
             {
+                let mut locked_oc_state = send_lock_state.read().unwrap();
                 let mut locked_send_queue = send_lock_queue.write().unwrap();
+                if locked_oc_state.conn_state == OCConnectionState::Terminated {
+                    break; // TODO: here, we end the gRPC + RaSTA connection, but before, we should end the SCI connection
+                }
                 if let Some(telegram) = locked_send_queue.pop_front() {
                     message = telegram.into();
                 }
