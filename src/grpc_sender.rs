@@ -4,6 +4,7 @@ pub mod rasta_grpc {
     tonic::include_proto!("sci");
 }
 
+use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use std::{io, thread};
@@ -15,6 +16,7 @@ use sci_rs::{ProtocolType, SCIMessageType, SCITelegram, SCIVersionCheckResult};
 use tokio::time;
 use tonic::Request;
 
+const SEND_INTERVAL_MS: u64 = 500;
 const SCI_LS_VERSION: u8 = 0x03;
 
 #[derive(PartialEq)]
@@ -34,6 +36,24 @@ struct OCState {
     conn_state: OCConnectionState,
 }
 
+fn create_telegram_from_main(main: SCILSMain) -> SCITelegram {
+    let signal_aspect = SCILSSignalAspect::new(
+        main,
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        [0u8; 9]
+    );
+    SCITelegram::scils_show_signal_aspect("C", "S", signal_aspect)
+}
+
+// MD5 (16 bytes)
 fn check_checksum(
     sci_telegram: &SCITelegram,
     received_checksum: &[u8],
@@ -130,67 +150,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RastaClient::connect(format!("http://{}:{}", bridge_ip_addr, bridge_port)).await?;
     println!("Sender started!");
 
-    let nationally_specified_information = [0u8; 9];
-    let mut current_main_aspect = SCILSMain::Ks2;
-    let requested_main_aspect = SCILSMain::Ks2;
-
-    let lock = RwLock::new(requested_main_aspect);
-    let send_lock = Arc::new(lock);
-    let input_lock = send_lock.clone();
-
-    let mut oc_state = OCState {
+    let oc_state = OCState {
         confirmed_signal_aspect: None,
         confirmed_brightness: None,
         conn_state: OCConnectionState::Unconnected,
     };
 
+    let lock_state = RwLock::new(oc_state);
+    let input_lock_state = Arc::new(lock_state);
+    let receive_lock_state = input_lock_state.clone();
+
+    // begin handshake with sending a version request
+    let send_queue: VecDeque<SCITelegram> = VecDeque::from([SCITelegram::version_request(ProtocolType::SCIProtocolLS, "C", "S", SCI_LS_VERSION)]);
+
+    let lock_queue = RwLock::new(send_queue);
+    let input_lock_queue = Arc::new(lock_queue);
+    let receive_lock_queue = input_lock_queue.clone();
+    let send_lock_queue = input_lock_queue.clone();
+
     let mut input_string = String::new();
     thread::spawn(move || loop {
         input_string.clear();
         io::stdin().read_line(&mut input_string).unwrap();
-        if input_string.trim() == "Ks1" {
-            let mut locked_main_aspect = input_lock.write().unwrap();
-            *locked_main_aspect = SCILSMain::Ks1;
-        } else if input_string.trim() == "Ks2" {
-            let mut locked_main_aspect = input_lock.write().unwrap();
-            *locked_main_aspect = SCILSMain::Ks2;
+        let locked_oc_state = input_lock_state.read().unwrap();
+        let mut locked_send_queue = input_lock_queue.write().unwrap();
+        if locked_oc_state.conn_state == OCConnectionState::Connected {
+            if input_string.trim() == "Ks1" && locked_oc_state.confirmed_signal_aspect.as_ref().unwrap().main() != SCILSMain::Ks1  {
+                locked_send_queue.push_back(create_telegram_from_main(SCILSMain::Ks1));
+            } else if input_string.trim() == "Ks2" && locked_oc_state.confirmed_signal_aspect.as_ref().unwrap().main() != SCILSMain::Ks2 {
+                locked_send_queue.push_back(create_telegram_from_main(SCILSMain::Ks2));
+            } else if input_string.trim() == "Off" && locked_oc_state.confirmed_signal_aspect.as_ref().unwrap().main() != SCILSMain::Off {
+                locked_send_queue.push_back(create_telegram_from_main(SCILSMain::Off));
+            }
+        } else {
+            println!("Cannot send signal aspect because OC is not connected!");
         }
         thread::sleep(Duration::from_millis(1000));
     });
 
-    // TODO we need to begin with sending a version request
-    // TODO sending needs to be refactored (take telegrams out of send queue, so they can be added anywhere)
-    // TODO only send "show signal aspect" telegrams after connection established
     let outbound = async_stream::stream! {
-        let mut interval = time::interval(Duration::from_secs(1));
+        let mut interval = time::interval(Duration::from_millis(SEND_INTERVAL_MS));
         while let time = interval.tick().await {
-            let new_main_aspect;
+            let mut message = Vec::new();
             {
-                let locked_main_aspect = send_lock.read().unwrap();
-                new_main_aspect = *locked_main_aspect;
+                let mut locked_send_queue = send_lock_queue.write().unwrap();
+                if let Some(telegram) = locked_send_queue.pop_front() {
+                    message = telegram.into();
+                }
             }
-
-            if new_main_aspect != current_main_aspect {
-                current_main_aspect = new_main_aspect;
-                let signal_aspect = SCILSSignalAspect::new(
-                    current_main_aspect,
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    nationally_specified_information
-                );
-
-                println!("sending main={:?} ", current_main_aspect);
-
-                yield SciPacket {
-                    message: SCITelegram::scils_show_signal_aspect("C", "S", signal_aspect).into()
-                };
+            if message.len() > 0 {
+                yield SciPacket {message};
             }
         }
     };
@@ -205,9 +214,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .try_into()
             .unwrap_or_else(|e| panic!("Could not convert packet into SCITelegram: {:?}", e));
 
-        if let Some(_sci_response) = handle_incoming_telegram(sci_telegram, &mut oc_state) {
-            // TODO: here, we could send a response back, but currently, we don't
-            // TODO: add response to send queue
+        let mut locked_oc_state = receive_lock_state.write().unwrap();
+        if let Some(sci_response) = handle_incoming_telegram(sci_telegram, &mut locked_oc_state) {
+            let mut locked_send_queue = receive_lock_queue.write().unwrap();
+            locked_send_queue.push_back(sci_response);
         }
     }
 
