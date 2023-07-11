@@ -2,6 +2,7 @@ version: '3'
 
 services:
   oc_bridge:
+      platform: linux/amd64
       image: ghcr.io/eulynx-live/rasta-protocol/rasta_grpc_bridge_udp:main
       command:
         - /var/rasta.cfg
@@ -20,6 +21,7 @@ services:
           ipv4_address: 172.24.0.2
 
   interlocking_bridge:
+      platform: linux/amd64
       depends_on: [oc_bridge]
       image: ghcr.io/eulynx-live/rasta-protocol/rasta_grpc_bridge_udp:main
       command:
