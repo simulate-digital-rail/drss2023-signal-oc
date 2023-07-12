@@ -63,10 +63,7 @@ fn check_version(sender_version: u8) -> SCIVersionCheckResult {
 
 // MD5 (16 bytes)
 fn compute_checksum(pseudo_telegram: SCITelegram) -> Vec<u8> {
-    let checksum = md5::compute::<Vec<u8>>(pseudo_telegram.into());
-    let mut checksum_vec = vec![checksum.len().try_into().unwrap()];
-    checksum_vec.append(&mut Vec::from(checksum.as_slice()));
-    checksum_vec
+    md5::compute::<Vec<u8>>(pseudo_telegram.into()).to_vec()
 }
 
 fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
@@ -79,7 +76,6 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
             sci_telegram.sender,
             sci_telegram.receiver
         );
-        println!("Should show signal aspect");
         oc_interface::show_signal_aspect(status_change);
         vec![SCITelegram::scils_signal_aspect_status(
             &*sci_telegram.receiver,
@@ -94,6 +90,7 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
     } else if sci_telegram.message_type == SCIMessageType::sci_version_request() {
         let check_result = check_version(sci_telegram.payload.data[0]);
         if check_result == SCIVersionCheckResult::VersionsAreEqual {
+            println!("Received version request - sending version response telegram -> version check successful");
             let checksum = compute_checksum(SCITelegram::version_response(
                 ProtocolType::SCIProtocolLS,
                 &*sci_telegram.receiver,
@@ -111,6 +108,7 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
                 checksum.as_slice(),
             )];
         } else {
+            println!("Received version request - sending version response telegram -> version check failed");
             vec![SCITelegram::version_response(
                 ProtocolType::SCIProtocolLS,
                 &*sci_telegram.receiver,
@@ -121,6 +119,7 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
             )]
         }
     } else if sci_telegram.message_type == SCIMessageType::sci_status_request() {
+        println!("Received status request - sending status telegrams");
         vec![
             SCITelegram::status_begin(
                 ProtocolType::SCIProtocolLS,

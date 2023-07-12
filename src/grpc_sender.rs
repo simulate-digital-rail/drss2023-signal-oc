@@ -19,9 +19,8 @@ use tonic::Request;
 const SEND_INTERVAL_MS: u64 = 500;
 const SCI_LS_VERSION: u8 = 0x03;
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 enum OCConnectionState {
-    Unconnected,          // nothing happened so far
     VersionRequestSent,   // version request sent, awaiting version response
     StatusRequestSent,    // version response received, status request sent
     StatusBeginReceived,  // status begin received, awaiting signal aspect
@@ -104,11 +103,12 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram, state: &mut OCState) -> O
     } else if sci_telegram.message_type == SCIMessageType::sci_version_response()
         && state.conn_state == OCConnectionState::VersionRequestSent
     {
-        let remote_version = sci_telegram.payload.data[0];
+        println!("Received version response telegram");
         let remote_check_result: SCIVersionCheckResult =
-            sci_telegram.payload.data[1].try_into().unwrap();
-        let checksum_len: usize = sci_telegram.payload.data[1].into();
-        let checksum = &sci_telegram.payload.data[3..3 + checksum_len];
+            sci_telegram.payload.data[0].try_into().unwrap();
+        let remote_version = sci_telegram.payload.data[1];
+        let checksum_len: usize = sci_telegram.payload.data[2].into();
+        let checksum = &sci_telegram.payload.data[3..(3 + checksum_len)];
         if remote_check_result == SCIVersionCheckResult::VersionsAreEqual
             && remote_version == SCI_LS_VERSION
             && checksum_len > 0
@@ -130,10 +130,12 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram, state: &mut OCState) -> O
     } else if sci_telegram.message_type == SCIMessageType::sci_status_begin()
         && state.conn_state == OCConnectionState::StatusRequestSent
     {
+        println!("Received status begin telegram");
         state.conn_state = OCConnectionState::StatusBeginReceived;
     } else if sci_telegram.message_type == SCIMessageType::sci_status_finish()
         && state.conn_state == OCConnectionState::BrightnessReceived
     {
+        println!("Received status finish telegram");
         state.conn_state = OCConnectionState::Connected;
     } else {
         println!("The received packet of type {} is either unrecognized or was received in the wrong order during handshake!", sci_telegram.message_type.try_as_sci_message_type().unwrap_or("UNKNOWN"));
@@ -154,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let oc_state = OCState {
         confirmed_signal_aspect: None,
         confirmed_brightness: None,
-        conn_state: OCConnectionState::Unconnected,
+        conn_state: OCConnectionState::VersionRequestSent,
     };
 
     let lock_state = RwLock::new(oc_state);
