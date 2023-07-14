@@ -23,7 +23,9 @@ pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect) {
         SCILSMain::Vr0 => {}
         SCILSMain::Vr1 => {}
         SCILSMain::Vr2 => {}
-        SCILSMain::Off => {}
+        SCILSMain::Off => {
+            println!("Signal turned off")
+        }
     }
 }
 
@@ -31,7 +33,7 @@ pub fn signal_aspect_status() -> SCILSSignalAspect {
     let nationally_specified_information = [0u8; 9];
     //TODO returning actual status
     let signal_aspect = SCILSSignalAspect::new(
-        SCILSMain::Ks1,
+        SCILSMain::Ks2,
         Default::default(),
         Default::default(),
         Default::default(),

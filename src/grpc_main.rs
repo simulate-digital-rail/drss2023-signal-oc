@@ -96,7 +96,7 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
                 &*sci_telegram.receiver,
                 &*sci_telegram.sender,
                 SCI_LS_VERSION,
-                check_version(sci_telegram.payload.data[0]),
+                check_result,
                 &[0],
             ));
             return vec![SCITelegram::version_response(
@@ -104,7 +104,7 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
                 &*sci_telegram.receiver,
                 &*sci_telegram.sender,
                 SCI_LS_VERSION,
-                check_version(sci_telegram.payload.data[0]),
+                check_result,
                 checksum.as_slice(),
             )];
         } else {
@@ -114,7 +114,7 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
                 &*sci_telegram.receiver,
                 &*sci_telegram.sender,
                 SCI_LS_VERSION,
-                check_version(sci_telegram.payload.data[0]),
+                check_result,
                 &[0],
             )]
         }
