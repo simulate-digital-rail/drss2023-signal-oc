@@ -55,6 +55,7 @@ pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect) {
             };
             pc.set_bit_value(&mut val);
         }
+
     }
 }
 
