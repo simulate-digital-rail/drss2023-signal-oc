@@ -27,7 +27,7 @@ enum OCConnectionState {
     SignalAspectReceived, // signal aspect received, awaiting brightness
     BrightnessReceived,   // status transmission, awaiting status finish
     Connected,            // handshake completed successfully
-    Terminated,           // closed forcefully because of errors
+    Terminated,           // closed because of errors
 }
 
 struct OCState {
@@ -125,7 +125,11 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram, state: &mut OCState) -> O
                 "Versions are not matching (peer has version {}, we have version {})!",
                 remote_version, SCI_LS_VERSION
             );
-            state.conn_state = OCConnectionState::Terminated;
+            return Some(SCITelegram::release_for_maintenance(
+                ProtocolType::SCIProtocolLS,
+                &*sci_telegram.receiver,
+                &*sci_telegram.sender,
+            ));
         }
     } else if sci_telegram.message_type == SCIMessageType::sci_status_begin()
         && state.conn_state == OCConnectionState::StatusRequestSent
@@ -223,12 +227,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         while let time = interval.tick().await {
             let mut message = Vec::new();
             {
-                let mut locked_oc_state = send_lock_state.read().unwrap();
+                let mut locked_oc_state = send_lock_state.write().unwrap();
                 let mut locked_send_queue = send_lock_queue.write().unwrap();
                 if locked_oc_state.conn_state == OCConnectionState::Terminated {
-                    break; // TODO: here, we end the gRPC + RaSTA connection, but before, we should end the SCI connection
+                    break; // TODO: after refactoring to server, we should not shutdown here
                 }
                 if let Some(telegram) = locked_send_queue.pop_front() {
+                    if telegram.message_type == SCIMessageType::release_for_maintenance() {
+                        locked_oc_state.conn_state = OCConnectionState::Terminated;
+                    }
                     message = telegram.into();
                 }
             }
