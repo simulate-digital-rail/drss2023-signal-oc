@@ -4,53 +4,27 @@ pub mod rasta_grpc {
     tonic::include_proto!("sci");
 }
 
-use std::pin::Pin;
+use std::collections::VecDeque;
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
-use futures_core::Stream;
-use futures_util::StreamExt;
 use md5;
-use rasta_grpc::rasta_server::{Rasta, RastaServer};
+use rasta_grpc::rasta_client::RastaClient;
 use rasta_grpc::SciPacket;
 use sci_rs::scils::{SCILSBrightness, SCILSMain, SCILSSignalAspect};
 use sci_rs::{ProtocolType, SCIMessageType, SCITelegram, SCIVersionCheckResult};
-use tonic::transport::Server;
-use tonic::{Request, Response, Status};
+use tokio::time;
+use tonic::Request;
 
+const SEND_INTERVAL_MS: u64 = 500;
 const SCI_LS_VERSION: u8 = 0x03;
 
-struct RastaService {
-    most_restrictive_aspect: SCILSSignalAspect,
-}
-
-#[tonic::async_trait]
-impl Rasta for RastaService {
-    type StreamStream = Pin<Box<dyn Stream<Item = Result<SciPacket, Status>> + Send + 'static>>;
-
-    async fn stream(
-        &self,
-        request: Request<tonic::Streaming<SciPacket>>,
-    ) -> Result<Response<Self::StreamStream>, Status> {
-        let mut stream = request.into_inner();
-        let cloned_most_restrictive_aspect = self.most_restrictive_aspect.clone();
-
-        let output = async_stream::try_stream! {
-            while let Some(sci_packet) = stream.next().await {
-                let sci_packet = sci_packet?;
-                let sci_telegram = sci_packet.message.as_slice().try_into()
-                    .unwrap_or_else(|e| panic!("Could not convert packet into SCITelegram: {:?}", e));
-                for response in handle_incoming_telegram(sci_telegram) {
-                    yield SciPacket {
-                        message: response.into()
-                    }
-                }
-            }
-
-            // fallback when connection is interrupted
-            oc_interface::show_signal_aspect(cloned_most_restrictive_aspect);
-        };
-
-        Ok(Response::new(Box::pin(output) as Self::StreamStream))
-    }
+#[derive(PartialEq, Clone, Debug)]
+enum InterlockingConnectionState {
+    Unconnected,
+    VersionResponseSent,
+    Connected,
+    Terminated,
 }
 
 fn check_version(sender_version: u8) -> SCIVersionCheckResult {
@@ -66,15 +40,16 @@ fn compute_checksum(pseudo_telegram: SCITelegram) -> Vec<u8> {
     md5::compute::<Vec<u8>>(pseudo_telegram.into()).to_vec()
 }
 
-fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
+fn handle_incoming_telegram(
+    sci_telegram: SCITelegram,
+    state: &mut InterlockingConnectionState,
+) -> Vec<SCITelegram> {
     if sci_telegram.message_type == SCIMessageType::scils_show_signal_aspect() {
         let status_change =
             SCILSSignalAspect::try_from(sci_telegram.payload.data.as_slice()).unwrap();
         println!(
-            "Received show signal aspect telegram: changing main to {:?} (from {}, to {})",
-            status_change.main(),
-            sci_telegram.sender,
-            sci_telegram.receiver
+            "Received show signal aspect telegram: changing main to {:?}",
+            status_change.main()
         );
         oc_interface::show_signal_aspect(status_change);
         vec![SCITelegram::scils_signal_aspect_status(
@@ -89,6 +64,7 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
         vec![]
     } else if sci_telegram.message_type == SCIMessageType::sci_version_request() {
         let check_result = check_version(sci_telegram.payload.data[0]);
+        *state = InterlockingConnectionState::VersionResponseSent;
         if check_result == SCIVersionCheckResult::VersionsAreEqual {
             println!("Received version request - sending version response telegram -> version check successful");
             let checksum = compute_checksum(SCITelegram::version_response(
@@ -120,6 +96,7 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
         }
     } else if sci_telegram.message_type == SCIMessageType::sci_status_request() {
         println!("Received status request - sending status telegrams");
+        *state = InterlockingConnectionState::Connected;
         vec![
             SCITelegram::status_begin(
                 ProtocolType::SCIProtocolLS,
@@ -142,6 +119,12 @@ fn handle_incoming_telegram(sci_telegram: SCITelegram) -> Vec<SCITelegram> {
                 &*sci_telegram.sender,
             ),
         ]
+    } else if sci_telegram.message_type == SCIMessageType::sci_release_for_maintenance()
+        || sci_telegram.message_type == SCIMessageType::sci_close()
+    {
+        println!("Received release for maintenance or close - shutting down now!");
+        *state = InterlockingConnectionState::Terminated;
+        vec![]
     } else {
         println!(
             "Cannot handle received telegram of type {}!",
@@ -170,21 +153,59 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         [0u8; 9],
     );
 
-    let server_ip_addr = std::env::args().nth(1).unwrap();
-    let server_port = std::env::args().nth(2).unwrap();
-    let addr = format!("{}:{}", server_ip_addr, server_port)
-        .parse()
-        .unwrap();
+    let bridge_ip_addr = std::env::args().nth(1).unwrap();
+    let bridge_port = std::env::args().nth(2).unwrap();
+
+    let mut client =
+        RastaClient::connect(format!("http://{}:{}", bridge_ip_addr, bridge_port)).await?;
+    println!("OC software started!");
 
     // establish initial state of outputs
     oc_interface::show_signal_aspect(most_restrictive_aspect.clone());
 
-    println!("Starting receiver!");
-    let rasta_service = RastaService {
-        most_restrictive_aspect: most_restrictive_aspect.clone(),
+    let send_queue: VecDeque<SCITelegram> = VecDeque::new();
+    let lock_queue = RwLock::new(send_queue);
+    let receive_lock_queue = Arc::new(lock_queue);
+    let send_lock_queue = receive_lock_queue.clone();
+
+    let mut conn_state = InterlockingConnectionState::Unconnected;
+
+    let outbound = async_stream::stream! {
+        let mut interval = time::interval(Duration::from_millis(SEND_INTERVAL_MS));
+        while let time = interval.tick().await {
+            let mut message = Vec::new();
+            {
+                let mut locked_send_queue = send_lock_queue.write().unwrap();
+                if let Some(telegram) = locked_send_queue.pop_front() {
+                    message = telegram.into();
+                }
+            }
+            if message.len() > 0 {
+                yield SciPacket {message};
+            }
+        }
     };
-    let server = RastaServer::new(rasta_service);
-    Server::builder().add_service(server).serve(addr).await?;
+
+    let response = client.stream(Request::new(outbound)).await?;
+    let mut inbound = response.into_inner();
+
+    while let Some(sci_packet) = inbound.message().await? {
+        let sci_telegram = sci_packet
+            .message
+            .as_slice()
+            .try_into()
+            .unwrap_or_else(|e| panic!("Could not convert packet into SCITelegram: {:?}", e));
+        let mut locked_send_queue = receive_lock_queue.write().unwrap();
+        for sci_response in handle_incoming_telegram(sci_telegram, &mut conn_state) {
+            locked_send_queue.push_back(sci_response);
+        }
+        if conn_state == InterlockingConnectionState::Terminated {
+            break;
+        }
+    }
+
+    // fallback when connection is interrupted
+    oc_interface::show_signal_aspect(most_restrictive_aspect);
 
     Ok(())
 }

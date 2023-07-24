@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  oc_bridge:
+  interlocking_bridge:
       platform: linux/amd64
       image: ghcr.io/eulynx-live/rasta-protocol/rasta_grpc_bridge_udp:main
       command:
@@ -15,14 +15,14 @@ services:
         - "96"
         - "172.24.0.1:50001"
       volumes:
-        - ./config/rasta_oc.cfg:/var/rasta.cfg:ro
+        - ./config/rasta_interlocking.cfg:/var/rasta.cfg:ro
       networks:
         bridge_net:
           ipv4_address: 172.24.0.2
 
-  interlocking_bridge:
+  oc_bridge:
       platform: linux/amd64
-      depends_on: [oc_bridge]
+      depends_on: [interlocking_bridge]
       image: ghcr.io/eulynx-live/rasta-protocol/rasta_grpc_bridge_udp:main
       command:
         - /var/rasta.cfg
@@ -36,7 +36,7 @@ services:
       ports:
         - 50002:50002
       volumes:
-        - ./config/rasta_interlocking.cfg:/var/rasta.cfg:ro
+        - ./config/rasta_oc.cfg:/var/rasta.cfg:ro
       networks:
         bridge_net:
           ipv4_address: 172.24.0.3
