@@ -52,15 +52,15 @@ For this, follows these steps (on RevPi, skip the first two):
 * build the gRPC bridge binary by running the commands that are given in the steps "Install CUnit", "Install gRPC", "Configure CMake without extensions" (without the `-DENABLE_RASTA_TLS=ON`) and "Build without extensions" of [this CI config](https://github.com/eulynx-live/rasta-protocol/blob/main/.github/workflows/ci.yml)
     * **Note**: in this step, you might need to fix some small compiler errors, especially when using 32-bit OSes like Raspbian or when using `clang` compiler
 * the binary now is in `rasta-protocol/build`, `cd` into this directory
-* start the gRPC bridge (as a Rasta server / gRPC client) on the OC side with the command `./rasta_grpc_bridge_udp ../../config/rasta_oc.cfg 0.0.0.0:4242 127.0.0.1 9998 127.0.0.1 9999 97 96 127.0.0.1:50001` run in the build folder of the rasta-protocol project. First parameter is the Rasta config file, second will be ignored, 3-6 are the transport channels of the Rasta client, 7-8 are the Rasta IDs of server and client, 9 is the address of the gRPC server to connect to.
-* start the gRPC bridge (as a Rasta client / gRPC server) on the interlocking side with the command `./rasta_grpc_bridge_udp ../../config/rasta_interlocking.cfg 0.0.0.0:50002 127.0.0.1 8888 127.0.0.1 8889 96 97` run in the build folder of the rasta-protocol project. First parameter is the Rasta config file, second is the socket the gRPC server should listen on, 3-6 are the transport channels of the Rasta server, 7-8 are the Rasta IDs of client and server.
+* start the gRPC bridge (as a Rasta server / gRPC client) on the interlocking side with the command `./rasta_grpc_bridge_udp ../../config/rasta_interlocking.cfg 0.0.0.0:4242 127.0.0.1 9998 127.0.0.1 9999 97 96 127.0.0.1:50001` run in the build folder of the rasta-protocol project. First parameter is the Rasta config file, second will be ignored, 3-6 are the transport channels of the Rasta client, 7-8 are the Rasta IDs of server and client, 9 is the address of the gRPC server to connect to.
+* start the gRPC bridge (as a Rasta client / gRPC server) on the OC side with the command `./rasta_grpc_bridge_udp ../../config/rasta_oc.cfg 0.0.0.0:50002 127.0.0.1 8888 127.0.0.1 8889 96 97` run in the build folder of the rasta-protocol project. First parameter is the Rasta config file, second is the socket the gRPC server should listen on, 3-6 are the transport channels of the Rasta server, 7-8 are the Rasta IDs of client and server.
 
 ### Starting the gRPC example
 Run the following steps:
 
-* start the OC software (`grpc_main`) with the command `cargo run --bin grpc_main 0.0.0.0 50001` (gRPC server will listen on port 50001)
+* start the interlocking software (`grpc_sender`) with the command `cargo run --bin grpc_sender 0.0.0.0 50001` (gRPC server will listen on port 50001)
 * refer to the respective subsection, depending on your processor architecture, to  start the gRPC bridges for OC and interlocking.
-* start the interlocking software (`grpc_sender`) with the command `cargo run --bin grpc_sender 127.0.0.1 50002` (gRPC client will connect to the server on port 50002)
+* start the OC software (`grpc_main`) with the command `cargo run --bin grpc_main 127.0.0.1 50002` (gRPC client will connect to the server on port 50002)
 
 
 ## rasta-rs example 
