@@ -42,7 +42,10 @@ fn main() {
             let mut locked_main_aspect = input_lock.write().unwrap();
             *locked_main_aspect = SCILSMain::Ks2;
         }
-
+        else if input_string.trim() == "Off" {
+            let mut locked_main_aspect = input_lock.write().unwrap();
+            *locked_main_aspect = SCILSMain::Off;
+        }
 
         /*
                 {

@@ -1,60 +1,58 @@
+
+use std::env;
+use std::ptr::null;
 use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
 use picontrol::PiControl;
 use picontrol::bindings::SPIValue;
 
-pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect) {
-    println!("Show signal aspect called");
+use crate::PinConfig;
 
+
+pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect, cfg: PinConfig) {
 
     match signal_aspect.main() {
-        SCILSMain::Hp0 => {}
-        SCILSMain::Hp0PlusSh1 => {}
+        SCILSMain::Hp0 => {do_run(cfg, "Hp0");}
+        SCILSMain::Hp0PlusSh1 => {do_run(cfg, "Hp0PlusSh1");}
         SCILSMain::Hp0WithDrivingIndicator => {}
-        SCILSMain::Ks1 => {
-            println!("Signal shows Ks1");
-            let led_values: [u8; 4] = [1,1,1,1];
-            do_run(led_values)
-        }
-        SCILSMain::Ks1Flashing => {}
-        SCILSMain::Ks1FlashingWithAdditionalLight => {}
-        SCILSMain::Ks2 => {
-            println!("Signal shows Ks2");
-            let led_values: [u8; 4] = [0,0,1,1];
-            do_run(led_values)
-        }
-        SCILSMain::Ks2WithAdditionalLight => {}
-        SCILSMain::Sh1 => {}
-        SCILSMain::IdLight => {}
-        SCILSMain::Hp0Hv => {}
-        SCILSMain::Hp1 => {}
-        SCILSMain::Hp2 => {}
-        SCILSMain::Vr0 => {}
-        SCILSMain::Vr1 => {}
-        SCILSMain::Vr2 => {}
+        SCILSMain::Ks1 => {do_run(cfg, "Ks1")}
+        SCILSMain::Ks1Flashing => { do_run(cfg, "Ks1Flashing");}
+        SCILSMain::Ks1FlashingWithAdditionalLight => {do_run(cfg, "Ks1Flashing")}
+        SCILSMain::Ks2 => { do_run(cfg, "Ks2")}
+        SCILSMain::Ks2WithAdditionalLight => {do_run(cfg, "Ks2WithAdditionalLight")}
+        SCILSMain::Sh1 => {do_run(cfg, "Sh1")}
+        SCILSMain::IdLight => {do_run(cfg, "IdLight")}
+        SCILSMain::Hp0Hv => {do_run(cfg, "Hp0Hv")}
+        SCILSMain::Hp1 => {do_run(cfg, "Hp1")}
+        SCILSMain::Hp2 => {do_run(cfg, "Hp2")}
+        SCILSMain::Vr0 => {do_run(cfg, "Vr0")}
+        SCILSMain::Vr1 => {do_run(cfg, "Vr1")}
+        SCILSMain::Vr2 => {do_run(cfg, "Vr2")}
         SCILSMain::Off => {
-            println!("OFF");
-            let led_values: [u8; 4] = [0,0,0,0];
-            do_run(led_values)
+            do_run(cfg, "Off");
         }
     }
 
-    fn do_run(led_values: [u8;4]){
-        let pc = PiControl::new().unwrap();
-        for led_value in led_values.iter().enumerate(){
-            let (i, x): (usize, &u8) = led_value;
-            let index = i+1;
-            println!("index {:?},", index);
-            let led_pin = format!("O_{index}");
-            println!("led_pin {:?},", led_pin);
-            let var_data = pc.find_variable(&led_pin);
-            println!("VAR_DATA {:?},", var_data);
-            let mut val = SPIValue {
-                i16uAddress: var_data.i16uAddress,
-                i8uBit: var_data.i8uBit,
-                i8uValue: *x
-            };
-            pc.set_bit_value(&mut val);
+    fn do_run(cfg: PinConfig, signal: &str){
+        println!("Signal shows {}", signal);
+        if cfg.signals.contains_key(signal){
+            let led_values = cfg.signals.get(signal).unwrap();
+            let pc = PiControl::new().unwrap();
+            for (index, value) in led_values.iter().enumerate(){
+                let pin = cfg.pins.get(index).unwrap();
+                println!("PIN: {}, VALUE: {}", pin, value);
+
+                let var_data = pc.find_variable(&pin);
+                let mut val = SPIValue {
+                    i16uAddress: var_data.i16uAddress,
+                    i8uBit: var_data.i8uBit,
+                    i8uValue: *value
+                };
+                pc.set_bit_value(&mut val);
+            }
+        }else{
+            eprintln!("NO CONFIG FOUND FOR SCI SIGNAL {}", signal)
         }
+
 
     }
 }
