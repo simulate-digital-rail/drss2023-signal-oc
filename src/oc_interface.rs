@@ -1,38 +1,33 @@
-
-use std::env;
-use std::ptr::null;
 use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
 use picontrol::PiControl;
 use picontrol::bindings::SPIValue;
-
-use crate::PinConfig;
-
+use crate::io_config::PinConfig;
 
 pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect, cfg: PinConfig) {
 
     match signal_aspect.main() {
-        SCILSMain::Hp0 => {do_run(cfg, "Hp0");}
-        SCILSMain::Hp0PlusSh1 => {do_run(cfg, "Hp0PlusSh1");}
+        SCILSMain::Hp0 => { show_signal_aspect(cfg, "Hp0");}
+        SCILSMain::Hp0PlusSh1 => { show_signal_aspect(cfg, "Hp0PlusSh1");}
         SCILSMain::Hp0WithDrivingIndicator => {}
-        SCILSMain::Ks1 => {do_run(cfg, "Ks1")}
-        SCILSMain::Ks1Flashing => { do_run(cfg, "Ks1Flashing");}
-        SCILSMain::Ks1FlashingWithAdditionalLight => {do_run(cfg, "Ks1Flashing")}
-        SCILSMain::Ks2 => { do_run(cfg, "Ks2")}
-        SCILSMain::Ks2WithAdditionalLight => {do_run(cfg, "Ks2WithAdditionalLight")}
-        SCILSMain::Sh1 => {do_run(cfg, "Sh1")}
-        SCILSMain::IdLight => {do_run(cfg, "IdLight")}
-        SCILSMain::Hp0Hv => {do_run(cfg, "Hp0Hv")}
-        SCILSMain::Hp1 => {do_run(cfg, "Hp1")}
-        SCILSMain::Hp2 => {do_run(cfg, "Hp2")}
-        SCILSMain::Vr0 => {do_run(cfg, "Vr0")}
-        SCILSMain::Vr1 => {do_run(cfg, "Vr1")}
-        SCILSMain::Vr2 => {do_run(cfg, "Vr2")}
+        SCILSMain::Ks1 => { show_signal_aspect(cfg, "Ks1")}
+        SCILSMain::Ks1Flashing => { show_signal_aspect(cfg, "Ks1Flashing");}
+        SCILSMain::Ks1FlashingWithAdditionalLight => { show_signal_aspect(cfg, "Ks1Flashing")}
+        SCILSMain::Ks2 => { show_signal_aspect(cfg, "Ks2")}
+        SCILSMain::Ks2WithAdditionalLight => { show_signal_aspect(cfg, "Ks2WithAdditionalLight")}
+        SCILSMain::Sh1 => { show_signal_aspect(cfg, "Sh1")}
+        SCILSMain::IdLight => { show_signal_aspect(cfg, "IdLight")}
+        SCILSMain::Hp0Hv => { show_signal_aspect(cfg, "Hp0Hv")}
+        SCILSMain::Hp1 => { show_signal_aspect(cfg, "Hp1")}
+        SCILSMain::Hp2 => { show_signal_aspect(cfg, "Hp2")}
+        SCILSMain::Vr0 => { show_signal_aspect(cfg, "Vr0")}
+        SCILSMain::Vr1 => { show_signal_aspect(cfg, "Vr1")}
+        SCILSMain::Vr2 => { show_signal_aspect(cfg, "Vr2")}
         SCILSMain::Off => {
-            do_run(cfg, "Off");
+            show_signal_aspect(cfg, "Off");
         }
     }
 
-    fn do_run(cfg: PinConfig, signal: &str){
+    fn show_signal_aspect(cfg: PinConfig, signal: &str){
         println!("Signal shows {}", signal);
         if cfg.signals.contains_key(signal){
             let led_values = cfg.signals.get(signal).unwrap();
@@ -52,8 +47,6 @@ pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect, cfg: PinConfig) {
         }else{
             eprintln!("NO CONFIG FOUND FOR SCI SIGNAL {}", signal)
         }
-
-
     }
 }
 
