@@ -9,7 +9,7 @@ mod io_config;
 mod oc_interface;
 
 fn main() {
-    let io_cfg = io_config::get_config();
+    let io_cfg = io_config::get_config(1);
 
     let addr: SocketAddr = "127.0.0.1:8888".parse().unwrap();
     let listener = RastaListener::try_new(addr, 1337).unwrap();

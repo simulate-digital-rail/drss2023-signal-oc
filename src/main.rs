@@ -1,5 +1,5 @@
+mod io_config;
 mod oc_interface;
-use crate::io_config::PinConfig;
 
 pub mod rasta_grpc {
     tonic::include_proto!("sci");
@@ -9,6 +9,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
+use io_config::PinConfig;
 use md5;
 use rasta_grpc::rasta_client::RastaClient;
 use rasta_grpc::SciPacket;
@@ -141,7 +142,7 @@ fn handle_incoming_telegram(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let io_cfg = io_config::get_config();
+    let io_cfg = io_config::get_config(3);
     let most_restrictive_aspect = SCILSSignalAspect::new(
         SCILSMain::Ks2,
         Default::default(),

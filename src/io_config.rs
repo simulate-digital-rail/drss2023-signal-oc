@@ -34,13 +34,13 @@ impl Default for PinConfig {
     }
 }
 
-pub fn get_config() -> PinConfig {
+pub fn get_config(config_arg_pos: usize) -> PinConfig {
     let args: Vec<String> = env::args().collect();
     println!("ARGS {:?}", { args.clone() });
     let mut config_file_path = "./config/pin_config.toml";
     let mut cfg = PinConfig::default();
-    if args.len() > 1 {
-        config_file_path = &args[1];
+    if args.len() > config_arg_pos {
+        config_file_path = &args[config_arg_pos];
     } else {
         println!(
             "NO CONFIG FILE WAS GIVEN, USE DEFAULT PATH {}",
