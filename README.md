@@ -58,14 +58,14 @@ For this, follows these steps (on RevPi, skip the first two):
 ### Starting the gRPC example
 Run the following steps:
 
-* start the interlocking software (`grpc_sender`) with the command `cargo run --bin grpc_sender 0.0.0.0 50001` (gRPC server will listen on port 50001)
+* start the interlocking software (`sender`) with the command `cargo run --bin sender 0.0.0.0 50001` (gRPC server will listen on port 50001)
 * refer to the respective subsection, depending on your processor architecture, to  start the gRPC bridges for OC and interlocking.
-* start the OC software (`grpc_main`) with the command `cargo run --bin grpc_main 127.0.0.1 50002` (gRPC client will connect to the server on port 50002)
+* start the OC software (`main`) with the command `cargo run --bin receiver 127.0.0.1 50002` (gRPC client will connect to the server on port 50002)
 
 
 ## rasta-rs example 
-* start the OC software (`main`) with the command `cargo run --bin receiver`
-* start the interlocking software (`sender`) with the command `cargo run --bin sender` 
+* start the OC software (`old_main`) with the command `cargo run --bin old_receiver`
+* start the interlocking software (`old_sender`) with the command `cargo run --bin old_sender` 
 
 The sender can send the main aspect Ks1 or Ks2.
 Writing to the console and confirm with enter.
