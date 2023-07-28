@@ -1,0 +1,21 @@
+number_of_pins= 4
+pins= ["O_1", "O_2", "O_3", "O_4"]
+# sci signals supported:
+# - Hp0,
+# - Hp0PlusSh1
+# - Hp0WithDrivingIndicator
+# - Ks1
+# - Ks2
+# - Ks1Flashing
+# - Ks1FlashingWithAdditionalLight
+# - Ks2WithAdditionalLight
+# - Sh1
+# - IdLight
+# - Hp0Hv
+# - Hp1
+# - Hp2
+# - Vr0
+# - Vr1
+# - Vr2
+# - Off
+signals={"Off"=[0,0,0,0], "Ks1"=[1,1,1,1], "Ks2"=[0,0,1,1]}

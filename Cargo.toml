@@ -26,9 +26,14 @@ tonic = "0.9"
 prost = "0.11"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 futures-core = "0.3"
+picontrol = { git = "https://github.com/ctiedt/revpi-tools-rs.git", version = "0.1.0" }
 futures-util = "0.3"
 async-stream = "0.2"
 md5 = "0.7.0"
+serde = { version = "1.0", features = ["derive"] }
+config-file = "0.2.3"
+
+
 
 [dependencies.sci-rs]
 git = "https://github.com/mese96/rasta-rs"

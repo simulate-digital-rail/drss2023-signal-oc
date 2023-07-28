@@ -1,4 +1,5 @@
 mod oc_interface;
+use crate::io_config::PinConfig;
 
 pub mod rasta_grpc {
     tonic::include_proto!("sci");
@@ -43,6 +44,7 @@ fn compute_checksum(pseudo_telegram: SCITelegram) -> Vec<u8> {
 fn handle_incoming_telegram(
     sci_telegram: SCITelegram,
     state: &mut InterlockingConnectionState,
+    io_cfg: PinConfig,
 ) -> Vec<SCITelegram> {
     if sci_telegram.message_type == SCIMessageType::scils_show_signal_aspect() {
         let status_change =
@@ -51,7 +53,7 @@ fn handle_incoming_telegram(
             "Received show signal aspect telegram: changing main to {:?}",
             status_change.main()
         );
-        oc_interface::show_signal_aspect(status_change);
+        oc_interface::show_signal_aspect(status_change, io_cfg.clone());
         vec![SCITelegram::scils_signal_aspect_status(
             &*sci_telegram.receiver,
             &*sci_telegram.sender,
@@ -139,6 +141,7 @@ fn handle_incoming_telegram(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let io_cfg = io_config::get_config();
     let most_restrictive_aspect = SCILSSignalAspect::new(
         SCILSMain::Ks2,
         Default::default(),
@@ -161,7 +164,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("OC software started!");
 
     // establish initial state of outputs
-    oc_interface::show_signal_aspect(most_restrictive_aspect.clone());
+    oc_interface::show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());
 
     let send_queue: VecDeque<SCITelegram> = VecDeque::new();
     let lock_queue = RwLock::new(send_queue);
@@ -196,7 +199,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .try_into()
             .unwrap_or_else(|e| panic!("Could not convert packet into SCITelegram: {:?}", e));
         let mut locked_send_queue = receive_lock_queue.write().unwrap();
-        for sci_response in handle_incoming_telegram(sci_telegram, &mut conn_state) {
+        for sci_response in handle_incoming_telegram(sci_telegram, &mut conn_state, io_cfg.clone())
+        {
             locked_send_queue.push_back(sci_response);
         }
         if conn_state == InterlockingConnectionState::Terminated {
@@ -205,7 +209,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // fallback when connection is interrupted
-    oc_interface::show_signal_aspect(most_restrictive_aspect);
+    oc_interface::show_signal_aspect(most_restrictive_aspect, io_cfg.clone());
 
     Ok(())
 }
