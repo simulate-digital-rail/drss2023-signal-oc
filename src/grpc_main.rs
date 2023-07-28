@@ -44,7 +44,7 @@ fn compute_checksum(pseudo_telegram: SCITelegram) -> Vec<u8> {
 fn handle_incoming_telegram(
     sci_telegram: SCITelegram,
     state: &mut InterlockingConnectionState,
-    io_cfg: PinConfig
+    io_cfg: PinConfig,
 ) -> Vec<SCITelegram> {
     if sci_telegram.message_type == SCIMessageType::scils_show_signal_aspect() {
         let status_change =
@@ -199,7 +199,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .try_into()
             .unwrap_or_else(|e| panic!("Could not convert packet into SCITelegram: {:?}", e));
         let mut locked_send_queue = receive_lock_queue.write().unwrap();
-        for sci_response in handle_incoming_telegram(sci_telegram, &mut conn_state, io_cfg.clone()) {
+        for sci_response in handle_incoming_telegram(sci_telegram, &mut conn_state, io_cfg.clone())
+        {
             locked_send_queue.push_back(sci_response);
         }
         if conn_state == InterlockingConnectionState::Terminated {
