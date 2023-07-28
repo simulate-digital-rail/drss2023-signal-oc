@@ -3,28 +3,6 @@ use picontrol::bindings::SPIValue;
 use picontrol::PiControl;
 use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
 
-pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect, cfg: PinConfig) {
-    match signal_aspect.main() {
-        SCILSMain::Hp0 => show_signal_aspect("Hp0", cfg),
-        SCILSMain::Hp0PlusSh1 => show_signal_aspect("Hp0PlusSh1", cfg),
-        SCILSMain::Hp0WithDrivingIndicator => {}
-        SCILSMain::Ks1 => show_signal_aspect("Ks1", cfg),
-        SCILSMain::Ks1Flashing => show_signal_aspect("Ks1Flashing", cfg),
-        SCILSMain::Ks1FlashingWithAdditionalLight => show_signal_aspect("Ks1Flashing", cfg),
-        SCILSMain::Ks2 => show_signal_aspect("Ks2", cfg),
-        SCILSMain::Ks2WithAdditionalLight => show_signal_aspect("Ks2WithAdditionalLight", cfg),
-        SCILSMain::Sh1 => show_signal_aspect("Sh1", cfg),
-        SCILSMain::IdLight => show_signal_aspect("IdLight", cfg),
-        SCILSMain::Hp0Hv => show_signal_aspect("Hp0Hv", cfg),
-        SCILSMain::Hp1 => show_signal_aspect("Hp1", cfg),
-        SCILSMain::Hp2 => show_signal_aspect("Hp2", cfg),
-        SCILSMain::Vr0 => show_signal_aspect("Vr0", cfg),
-        SCILSMain::Vr1 => show_signal_aspect("Vr1", cfg),
-        SCILSMain::Vr2 => show_signal_aspect("Vr2", cfg),
-        SCILSMain::Off => show_signal_aspect("Off", cfg),
-    }
-}
-
 fn show_signal_aspect(signal: &str, cfg: PinConfig) {
     println!("Signal shows {}", signal);
     if cfg.signals.contains_key(signal) {
@@ -44,6 +22,28 @@ fn show_signal_aspect(signal: &str, cfg: PinConfig) {
         }
     } else {
         eprintln!("NO CONFIG FOUND FOR SCI SIGNAL {}", signal)
+    }
+}
+
+pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect, cfg: PinConfig) {
+    match signal_aspect.main() {
+        SCILSMain::Hp0 => show_signal_aspect("Hp0", cfg),
+        SCILSMain::Hp0PlusSh1 => show_signal_aspect("Hp0PlusSh1", cfg),
+        SCILSMain::Hp0WithDrivingIndicator => {}
+        SCILSMain::Ks1 => show_signal_aspect("Ks1", cfg),
+        SCILSMain::Ks1Flashing => show_signal_aspect("Ks1Flashing", cfg),
+        SCILSMain::Ks1FlashingWithAdditionalLight => show_signal_aspect("Ks1Flashing", cfg),
+        SCILSMain::Ks2 => show_signal_aspect("Ks2", cfg),
+        SCILSMain::Ks2WithAdditionalLight => show_signal_aspect("Ks2WithAdditionalLight", cfg),
+        SCILSMain::Sh1 => show_signal_aspect("Sh1", cfg),
+        SCILSMain::IdLight => show_signal_aspect("IdLight", cfg),
+        SCILSMain::Hp0Hv => show_signal_aspect("Hp0Hv", cfg),
+        SCILSMain::Hp1 => show_signal_aspect("Hp1", cfg),
+        SCILSMain::Hp2 => show_signal_aspect("Hp2", cfg),
+        SCILSMain::Vr0 => show_signal_aspect("Vr0", cfg),
+        SCILSMain::Vr1 => show_signal_aspect("Vr1", cfg),
+        SCILSMain::Vr2 => show_signal_aspect("Vr2", cfg),
+        SCILSMain::Off => show_signal_aspect("Off", cfg),
     }
 }
 
