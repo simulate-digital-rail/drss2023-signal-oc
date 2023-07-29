@@ -43,6 +43,7 @@ fn compute_checksum(pseudo_telegram: SCITelegram) -> Vec<u8> {
 }
 
 fn handle_incoming_telegram(
+    oc : &mut oc_interface::OC,
     sci_telegram: SCITelegram,
     state: &mut InterlockingConnectionState,
     io_cfg: PinConfig,
@@ -54,11 +55,11 @@ fn handle_incoming_telegram(
             "Received show signal aspect telegram: changing main to {:?}",
             status_change.main()
         );
-        oc_interface::show_signal_aspect(status_change, io_cfg.clone());
+        oc.show_signal_aspect(status_change, io_cfg.clone());
         vec![SCITelegram::scils_signal_aspect_status(
             &*sci_telegram.receiver,
             &*sci_telegram.sender,
-            oc_interface::signal_aspect_status(),
+            oc.signal_aspect_status(),
         )]
     } else if sci_telegram.message_type == SCIMessageType::scils_change_brightness() {
         println!(
@@ -109,7 +110,7 @@ fn handle_incoming_telegram(
             SCITelegram::scils_signal_aspect_status(
                 &*sci_telegram.receiver,
                 &*sci_telegram.sender,
-                oc_interface::signal_aspect_status(),
+                oc.signal_aspect_status(),
             ),
             SCITelegram::scils_brightness_status(
                 &*sci_telegram.receiver,
@@ -164,8 +165,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RastaClient::connect(format!("http://{}:{}", bridge_ip_addr, bridge_port)).await?;
     println!("OC software started!");
 
+    let mut oc = oc_interface::OC { main_aspect: Default::default()};
     // establish initial state of outputs
-    oc_interface::show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());
+    oc.show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());
 
     let send_queue: VecDeque<SCITelegram> = VecDeque::new();
     let lock_queue = RwLock::new(send_queue);
@@ -200,7 +202,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .try_into()
             .unwrap_or_else(|e| panic!("Could not convert packet into SCITelegram: {:?}", e));
         let mut locked_send_queue = receive_lock_queue.write().unwrap();
-        for sci_response in handle_incoming_telegram(sci_telegram, &mut conn_state, io_cfg.clone())
+        for sci_response in handle_incoming_telegram(&mut oc,sci_telegram, &mut conn_state, io_cfg.clone())
         {
             locked_send_queue.push_back(sci_response);
         }
@@ -210,7 +212,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // fallback when connection is interrupted
-    oc_interface::show_signal_aspect(most_restrictive_aspect, io_cfg.clone());
+    oc.show_signal_aspect(most_restrictive_aspect, io_cfg.clone());
 
     Ok(())
 }
