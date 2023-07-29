@@ -3,8 +3,8 @@ use picontrol::bindings::SPIValue;
 use picontrol::PiControl;
 use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
 
-pub(crate) struct OC {
-    pub(crate) main_aspect : SCILSMain,
+pub struct OC {
+    pub main_aspect : SCILSMain,
 }
 
 fn show_signal_aspect_internal(signal: &str, _cfg: PinConfig) {

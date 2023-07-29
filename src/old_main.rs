@@ -17,6 +17,8 @@ fn main() {
     let mut receiver = SCIListener::new(listener, "S".to_string());
     let mut luminosity = SCILSBrightness::Night;
 
+    let mut oc = oc_interface::OC { main_aspect: Default::default()};
+
     receiver
         .listen(|telegram| {
             /*
@@ -32,11 +34,11 @@ fn main() {
                 println!("Should show signal aspect");
                 let status_change =
                     SCILSSignalAspect::try_from(telegram.payload.data.as_slice()).unwrap();
-                oc_interface::show_signal_aspect(status_change, io_cfg.clone());
+                oc.show_signal_aspect(status_change, io_cfg.clone());
                 Some(SCITelegram::scils_signal_aspect_status(
                     &*telegram.receiver,
                     &*telegram.sender,
-                    oc_interface::signal_aspect_status(),
+                    oc.signal_aspect_status(),
                 ))
             } else if telegram.message_type == SCIMessageType::scils_change_brightness() {
                 let change = SCILSBrightness::try_from(telegram.payload.data[0]).unwrap();
