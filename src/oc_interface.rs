@@ -7,7 +7,7 @@ pub struct OC {
     pub main_aspect : SCILSMain,
 }
 
-fn show_signal_aspect_internal(signal: &str, _cfg: PinConfig) {
+fn show_signal_aspect_internal(signal: &str, cfg: PinConfig) {
     println!("Signal shows {}", signal);
     if cfg.signals.contains_key(signal) {
         let led_values = cfg.signals.get(signal).unwrap();
