@@ -3,7 +3,7 @@ version: '3'
 services:
   interlocking_bridge:
       platform: linux/amd64
-      image: ghcr.io/eulynx-live/rasta-protocol/rasta_grpc_bridge_udp:main
+      image: ghcr.io/eulynx-live/librasta/rasta_grpc_bridge_udp:main
       command:
         - /var/rasta.cfg
         - 0.0.0.0:4242
@@ -23,7 +23,7 @@ services:
   oc_bridge:
       platform: linux/amd64
       depends_on: [interlocking_bridge]
-      image: ghcr.io/eulynx-live/rasta-protocol/rasta_grpc_bridge_udp:main
+      image: ghcr.io/eulynx-live/librasta/rasta_grpc_bridge_udp:main
       command:
         - /var/rasta.cfg
         - 0.0.0.0:50002
