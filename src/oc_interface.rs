@@ -1,80 +1,77 @@
-use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
-use picontrol::PiControl;
+use crate::io_config::PinConfig;
 use picontrol::bindings::SPIValue;
+use picontrol::PiControl;
+use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
 
-pub fn show_signal_aspect(signal_aspect: SCILSSignalAspect) {
-    println!("Show signal aspect called");
+pub struct OC {
+    pub main_aspect : SCILSMain,
+}
 
-
-    match signal_aspect.main() {
-        SCILSMain::Hp0 => {}
-        SCILSMain::Hp0PlusSh1 => {}
-        SCILSMain::Hp0WithDrivingIndicator => {}
-        SCILSMain::Ks1 => {
-            println!("Signal shows Ks1");
-            let led_values: [u8; 4] = [1,1,1,1];
-            do_run(led_values)
-        }
-        SCILSMain::Ks1Flashing => {}
-        SCILSMain::Ks1FlashingWithAdditionalLight => {}
-        SCILSMain::Ks2 => {
-            println!("Signal shows Ks2");
-            let led_values: [u8; 4] = [0,0,1,1];
-            do_run(led_values)
-        }
-        SCILSMain::Ks2WithAdditionalLight => {}
-        SCILSMain::Sh1 => {}
-        SCILSMain::IdLight => {}
-        SCILSMain::Hp0Hv => {}
-        SCILSMain::Hp1 => {}
-        SCILSMain::Hp2 => {}
-        SCILSMain::Vr0 => {}
-        SCILSMain::Vr1 => {}
-        SCILSMain::Vr2 => {}
-        SCILSMain::Off => {
-            println!("OFF");
-            let led_values: [u8; 4] = [0,0,0,0];
-            do_run(led_values)
-        }
-    }
-
-    fn do_run(led_values: [u8;4]){
+fn show_signal_aspect_internal(signal: &str, cfg: PinConfig) {
+    println!("Signal shows {}", signal);
+    if cfg.signals.contains_key(signal) {
+        let led_values = cfg.signals.get(signal).unwrap();
         let pc = PiControl::new().unwrap();
-        for led_value in led_values.iter().enumerate(){
-            let (i, x): (usize, &u8) = led_value;
-            let index = i+1;
-            println!("index {:?},", index);
-            let led_pin = format!("O_{index}");
-            println!("led_pin {:?},", led_pin);
-            let var_data = pc.find_variable(&led_pin);
-            println!("VAR_DATA {:?},", var_data);
+        for (index, value) in led_values.iter().enumerate() {
+            let pin = cfg.pins.get(index).unwrap();
+            println!("PIN: {}, VALUE: {}", pin, value);
+
+            let var_data = pc.find_variable(&pin);
             let mut val = SPIValue {
                 i16uAddress: var_data.i16uAddress,
                 i8uBit: var_data.i8uBit,
-                i8uValue: *x
+                i8uValue: *value,
             };
             pc.set_bit_value(&mut val);
         }
+    } else {
+        eprintln!("NO CONFIG FOUND FOR SCI SIGNAL {}", signal)
     }
 }
 
-pub fn signal_aspect_status() -> SCILSSignalAspect {
-    let nationally_specified_information = [0u8; 9];
-    //TODO returning actual status
-    let signal_aspect = SCILSSignalAspect::new(
-        SCILSMain::Ks1,
-        Default::default(),
-        Default::default(),
-        Default::default(),
-        Default::default(),
-        Default::default(),
-        Default::default(),
-        Default::default(),
-        Default::default(),
-        Default::default(),
-        nationally_specified_information,
-    );
-    signal_aspect
+impl OC {
+    pub fn show_signal_aspect(&mut self, signal_aspect: SCILSSignalAspect, cfg: PinConfig) {
+        match signal_aspect.main() {
+            SCILSMain::Hp0 => show_signal_aspect_internal("Hp0", cfg),
+            SCILSMain::Hp0PlusSh1 => show_signal_aspect_internal("Hp0PlusSh1", cfg),
+            SCILSMain::Hp0WithDrivingIndicator => {}
+            SCILSMain::Ks1 => show_signal_aspect_internal("Ks1", cfg),
+            SCILSMain::Ks1Flashing => show_signal_aspect_internal("Ks1Flashing", cfg),
+            SCILSMain::Ks1FlashingWithAdditionalLight => {
+                show_signal_aspect_internal("Ks1Flashing", cfg)
+            }
+            SCILSMain::Ks2 => show_signal_aspect_internal("Ks2", cfg),
+            SCILSMain::Ks2WithAdditionalLight => {
+                show_signal_aspect_internal("Ks2WithAdditionalLight", cfg)
+            }
+            SCILSMain::Sh1 => show_signal_aspect_internal("Sh1", cfg),
+            SCILSMain::IdLight => show_signal_aspect_internal("IdLight", cfg),
+            SCILSMain::Hp0Hv => show_signal_aspect_internal("Hp0Hv", cfg),
+            SCILSMain::Hp1 => show_signal_aspect_internal("Hp1", cfg),
+            SCILSMain::Hp2 => show_signal_aspect_internal("Hp2", cfg),
+            SCILSMain::Vr0 => show_signal_aspect_internal("Vr0", cfg),
+            SCILSMain::Vr1 => show_signal_aspect_internal("Vr1", cfg),
+            SCILSMain::Vr2 => show_signal_aspect_internal("Vr2", cfg),
+            SCILSMain::Off => show_signal_aspect_internal("Off", cfg),
+        }
+        self.main_aspect = signal_aspect.main();
+    }
+
+    pub fn signal_aspect_status(&self) -> SCILSSignalAspect {
+        let nationally_specified_information = [0u8; 9];
+        let signal_aspect = SCILSSignalAspect::new(
+            self.main_aspect,
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            nationally_specified_information,
+        );
+        signal_aspect
+    }
 }
-
-

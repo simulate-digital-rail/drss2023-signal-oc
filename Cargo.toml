@@ -12,12 +12,12 @@ name = "receiver"
 path = "src/main.rs"
 
 [[bin]]
-name = "grpc_sender"
-path = "src/grpc_sender.rs"
+name = "old_sender"
+path = "src/old_sender.rs"
 
 [[bin]]
-name = "grpc_main"
-path = "src/grpc_main.rs"
+name = "old_receiver"
+path = "src/old_main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,6 +30,8 @@ picontrol = { git = "https://github.com/ctiedt/revpi-tools-rs.git", version = "0
 futures-util = "0.3"
 async-stream = "0.2"
 md5 = "0.7.0"
+serde = { version = "1.0", features = ["derive"] }
+config-file = "0.2.3"
 
 [dependencies.sci-rs]
 git = "https://github.com/mese96/rasta-rs"
