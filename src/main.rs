@@ -18,7 +18,6 @@ use sci_rs::{ProtocolType, SCIMessageType, SCITelegram, SCIVersionCheckResult};
 use tokio::time;
 use tonic::Request;
 use clokwerk::{Scheduler, TimeUnits};
-use clokwerk::Interval::*;
 
 const SEND_INTERVAL_MS: u64 = 500;
 const SCI_LS_VERSION: u8 = 0x03;
@@ -168,9 +167,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RastaClient::connect(format!("http://{}:{}", bridge_ip_addr, bridge_port)).await?;
     println!("OC software started!");
 
-    let mut oc = oc_interface::OC { main_aspect: Default::default()};
+    let mut oc = oc_interface::OC { main_aspect: Default::default(), main_aspect_string : "Off".parse().unwrap() };
+
+
     let mut scheduler = Scheduler::new();
-    scheduler.every(0.1.seconds()).run(|| oc.check_signal(io_cfg.clone()));
+    scheduler.every(1.seconds()).run(|| oc.check_signal(io_cfg.clone()));
 
     // establish initial state of outputs
     oc.show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());

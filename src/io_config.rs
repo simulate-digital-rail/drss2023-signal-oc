@@ -68,7 +68,7 @@ pub fn get_config(config_arg_pos: usize) -> PinConfig {
     } else {
         cfg = PinConfig::from_config_file(config_file_path).unwrap();
         println!("CONFIG FILE:{:?}", cfg.clone());
-        if cfg.pins.len() != cfg.number_of_pins {
+        if cfg.pins_output.len() != cfg.number_of_pins && cfg.pins_input.len() != cfg.number_of_pins && cfg.pins_output_backup.len() != cfg.number_of_pins{
             eprintln!("Error: NUMBER OF PINS DOES NOT MATCH, PLEASE CHECK THE CONFIG FILE!");
             std::process::exit(1);
         }

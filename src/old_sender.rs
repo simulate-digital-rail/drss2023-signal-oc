@@ -16,8 +16,8 @@ fn main() {
     let mut sender =
         SCIConnection::try_new(conn, "C".to_string(), sci_name_rasta_id_mapping).unwrap();
 
-    let target_luminosity = SCILSBrightness::Day;
-    let mut current_luminosity = SCILSBrightness::Night;
+    //let target_luminosity = SCILSBrightness::Day;
+    //let mut current_luminosity = SCILSBrightness::Night;
 
     let target_main_aspect = SCILSMain::Ks1;
     let mut current_main_aspect = SCILSMain::Ks1;
