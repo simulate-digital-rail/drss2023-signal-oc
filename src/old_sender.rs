@@ -1,5 +1,5 @@
 use rasta_rs::RastaConnection;
-use sci_rs::scils::{SCILSBrightness, SCILSMain, SCILSSignalAspect};
+use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
 use sci_rs::SCICommand;
 use sci_rs::SCIConnection;
 use sci_rs::SCITelegram;

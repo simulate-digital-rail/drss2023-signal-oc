@@ -4,14 +4,12 @@ use picontrol::PiControl;
 use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
 pub struct OC {
     pub main_aspect: SCILSMain,
-    pub main_aspect_string: String
+    pub main_aspect_string: String,
 }
-
-
 
 fn show_signal_aspect_internal(oc: &mut OC, signal: &str, cfg: PinConfig) {
     println!("Signal shows {}", signal);
-    oc.main_aspect_string = signal.parse().unwrap();
+    oc.main_aspect_string = signal.to_string();
     if cfg.signals.contains_key(signal) {
         let led_values = cfg.signals.get(signal).unwrap();
         let mut pc = PiControl::new().unwrap();
@@ -23,8 +21,6 @@ fn show_signal_aspect_internal(oc: &mut OC, signal: &str, cfg: PinConfig) {
         eprintln!("NO CONFIG FOUND FOR SCI SIGNAL {}", signal)
     }
 }
-
-
 
 // searches for the given pin and sets the given value
 fn set_pin_value(pc: &mut PiControl, value: &u8, pin: &&String) {
@@ -85,7 +81,7 @@ impl OC {
         signal_aspect
     }
 
-    pub fn check_signal(&self, cfg: PinConfig) {
+    pub fn check_signal(&self, cfg: &PinConfig) {
         let signal = self.main_aspect_string.clone();
         println!("Check signal {}", signal);
         if cfg.signals.contains_key(&*signal) {
@@ -96,7 +92,7 @@ impl OC {
                 let var_data = pc.find_variable(&pin);
                 let res = pc.read(var_data.i16uAddress.into(), 1);
                 println!("{}: {:?}", pin, res);
-                if res.iter().all(|&v| v == 0)  {
+                if res.iter().all(|&v| v == 0) {
                     println!("NO INPUT SIGNAL FOUND, TRY TO USE THE BACKUP LINE!");
                     let backup_pin = cfg.pins_output_backup.get(index).unwrap();
                     set_pin_value(&mut pc, value, &backup_pin);
