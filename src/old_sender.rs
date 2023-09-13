@@ -1,5 +1,5 @@
 use rasta_rs::RastaConnection;
-use sci_rs::scils::{SCILSBrightness, SCILSMain, SCILSSignalAspect};
+use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
 use sci_rs::SCICommand;
 use sci_rs::SCIConnection;
 use sci_rs::SCITelegram;
@@ -15,9 +15,6 @@ fn main() {
     let sci_name_rasta_id_mapping = HashMap::from([("C".to_string(), 42), ("S".to_string(), 1337)]);
     let mut sender =
         SCIConnection::try_new(conn, "C".to_string(), sci_name_rasta_id_mapping).unwrap();
-
-    let target_luminosity = SCILSBrightness::Day;
-    let mut current_luminosity = SCILSBrightness::Night;
 
     let target_main_aspect = SCILSMain::Ks1;
     let mut current_main_aspect = SCILSMain::Ks1;

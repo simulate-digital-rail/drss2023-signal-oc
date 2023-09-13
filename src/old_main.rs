@@ -17,7 +17,10 @@ fn main() {
     let mut receiver = SCIListener::new(listener, "S".to_string());
     let mut luminosity = SCILSBrightness::Night;
 
-    let mut oc = oc_interface::OC { main_aspect: Default::default()};
+    let mut oc = oc_interface::OC {
+        main_aspect: Default::default(),
+        brightness: SCILSBrightness::Day,
+    };
 
     receiver
         .listen(|telegram| {
