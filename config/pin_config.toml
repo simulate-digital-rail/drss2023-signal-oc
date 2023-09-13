@@ -1,5 +1,7 @@
-number_of_pins= 4
-pins= ["O_1", "O_2", "O_3", "O_4"]
+number_of_pins=4
+pins_o=["O_1", "O_2", "O_3", "O_4"]
+pins_o_backup=["O_11", "O_12", "O_13", "O_14"]
+pins_i=["I_1", "I_2", "I_3", "I_4"]
 # sci signals supported:
 # - Hp0,
 # - Hp0PlusSh1
