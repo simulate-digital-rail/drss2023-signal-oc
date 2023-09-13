@@ -1,4 +1,4 @@
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 
 pub mod rasta_grpc {
     tonic::include_proto!("sci");
@@ -43,6 +43,7 @@ struct OCState {
 
 struct RastaService {
     signal_main_to_send: Arc<RwLock<Option<SCILSMain>>>,
+    brightness_to_send: Arc<RwLock<Option<SCILSBrightness>>>,
 }
 
 #[tonic::async_trait]
@@ -62,6 +63,7 @@ impl Rasta for RastaService {
         };
 
         let cloned_signal_main_to_send = self.signal_main_to_send.clone();
+        let cloned_brightness_to_send = self.brightness_to_send.clone();
 
         let output = async_stream::try_stream! {
             // begin handshake with sending a version request
@@ -87,6 +89,7 @@ impl Rasta for RastaService {
                 }
                 let mut interval = time::interval(Duration::from_millis(SEND_INTERVAL_MS));
                 let mut signal_aspect_telegram = None;
+                let mut brightness_telegram = None;
                 while let time = interval.tick().await {
                     let mut locked_signal_main = cloned_signal_main_to_send.write().unwrap();
                     if let Some(signal_main) = *locked_signal_main {
@@ -96,8 +99,21 @@ impl Rasta for RastaService {
                             break;
                         }
                     }
+                    let mut locked_brightness = cloned_brightness_to_send.write().unwrap();
+                    if let Some(brightness) = *locked_brightness {
+                        *locked_brightness = None;
+                        if brightness != oc_state.confirmed_brightness.clone().unwrap() {
+                            brightness_telegram = Some(create_telegram_from_brightness(brightness));
+                            break;
+                        }
+                    }
                 }
                 if let Some(telegram) = signal_aspect_telegram {
+                    yield SciPacket {
+                        message: telegram.into()
+                    };
+                }
+                if let Some(telegram) = brightness_telegram {
                     yield SciPacket {
                         message: telegram.into()
                     };
@@ -124,6 +140,10 @@ fn create_telegram_from_main(main: SCILSMain) -> SCITelegram {
         [0u8; 9],
     );
     SCITelegram::scils_show_signal_aspect("C", "S", signal_aspect)
+}
+
+fn create_telegram_from_brightness(brightness: SCILSBrightness) -> SCITelegram {
+    SCITelegram::scils_change_brightness("C", "S", brightness)
 }
 
 // MD5 (16 bytes)
@@ -241,18 +261,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let signal_main_lock_send = Arc::new(signal_main_lock);
     let signal_main_lock_input = signal_main_lock_send.clone();
 
+    let brightness_to_send = None;
+    let brightness_lock = RwLock::new(brightness_to_send);
+    let brightness_lock_send = Arc::new(brightness_lock);
+    let brightness_lock_input = brightness_lock_send.clone();
+
     let mut input_string = String::new();
     thread::spawn(move || loop {
         input_string.clear();
         io::stdin().read_line(&mut input_string).unwrap();
         {
             let mut locked_signal_main = signal_main_lock_input.write().unwrap();
+            let mut locked_brightness = brightness_lock_input.write().unwrap();
             if input_string.trim() == "Ks1" {
                 *locked_signal_main = Some(SCILSMain::Ks1);
             } else if input_string.trim() == "Ks2" {
                 *locked_signal_main = Some(SCILSMain::Ks2);
             } else if input_string.trim() == "Off" {
                 *locked_signal_main = Some(SCILSMain::Off);
+            } else if input_string.trim() == "Day" {
+                *locked_brightness = Some(SCILSBrightness::Day);
+            } else if input_string.trim() == "Night" {
+                *locked_brightness = Some(SCILSBrightness::Night);
             }
         }
         thread::sleep(Duration::from_millis(1000));
@@ -261,6 +291,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting interlocking!");
     let rasta_service = RastaService {
         signal_main_to_send: signal_main_lock_send,
+        brightness_to_send: brightness_lock_send,
     };
     let server = RastaServer::new(rasta_service);
     Server::builder().add_service(server).serve(addr).await?;
