@@ -1,10 +1,11 @@
 use crate::io_config::PinConfig;
 use picontrol::bindings::SPIValue;
 use picontrol::PiControl;
-use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
+use sci_rs::scils::{SCILSBrightness, SCILSMain, SCILSSignalAspect};
 
 pub struct OC {
-    pub main_aspect : SCILSMain,
+    pub main_aspect: SCILSMain,
+    pub brightness: SCILSBrightness,
 }
 
 fn show_signal_aspect_internal(signal: &str, cfg: PinConfig) {
@@ -73,5 +74,28 @@ impl OC {
             nationally_specified_information,
         );
         signal_aspect
+    }
+
+    pub fn change_brightness(&mut self, brightness: SCILSBrightness, cfg: PinConfig) {
+        println!("Signal brightness is now {:?}", brightness);
+        self.brightness = brightness;
+        let value = if brightness == SCILSBrightness::Night {
+            0
+        } else {
+            1
+        };
+
+        let pc = PiControl::new().unwrap();
+        let var_data = pc.find_variable(&cfg.day_night_pin);
+        let mut val = SPIValue {
+            i16uAddress: var_data.i16uAddress,
+            i8uBit: var_data.i8uBit,
+            i8uValue: *value,
+        };
+        pc.set_bit_value(&mut val);
+    }
+
+    pub fn brightness_status(&self) -> SCILSBrightness {
+        self.brightness
     }
 }

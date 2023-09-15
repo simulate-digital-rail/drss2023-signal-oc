@@ -43,7 +43,7 @@ fn compute_checksum(pseudo_telegram: SCITelegram) -> Vec<u8> {
 }
 
 fn handle_incoming_telegram(
-    oc : &mut oc_interface::OC,
+    oc: &mut oc_interface::OC,
     sci_telegram: SCITelegram,
     state: &mut InterlockingConnectionState,
     io_cfg: PinConfig,
@@ -62,10 +62,17 @@ fn handle_incoming_telegram(
             oc.signal_aspect_status(),
         )]
     } else if sci_telegram.message_type == SCIMessageType::scils_change_brightness() {
+        let brightness_change = SCILSBrightness::try_from(sci_telegram.payload.data[0]).unwrap();
         println!(
-            "Interlocking commanded to change brightness, but this is not implemented for this OC!"
+            "Received change brightness telegram: changing brightness to {:?}",
+            brightness_change
         );
-        vec![]
+        oc.change_brightness(brightness_change, io_cfg.clone());
+        vec![SCITelegram::scils_brightness_status(
+            &*sci_telegram.receiver,
+            &*sci_telegram.sender,
+            oc.brightness_status(),
+        )]
     } else if sci_telegram.message_type == SCIMessageType::sci_version_request() {
         let check_result = check_version(sci_telegram.payload.data[0]);
         *state = InterlockingConnectionState::VersionResponseSent;
@@ -115,7 +122,7 @@ fn handle_incoming_telegram(
             SCITelegram::scils_brightness_status(
                 &*sci_telegram.receiver,
                 &*sci_telegram.sender,
-                SCILSBrightness::Day,
+                oc.brightness_status(),
             ),
             SCITelegram::status_finish(
                 ProtocolType::SCIProtocolLS,
@@ -165,9 +172,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RastaClient::connect(format!("http://{}:{}", bridge_ip_addr, bridge_port)).await?;
     println!("OC software started!");
 
-    let mut oc = oc_interface::OC { main_aspect: Default::default()};
+    let mut oc = oc_interface::OC {
+        main_aspect: Default::default(),
+        brightness: SCILSBrightness::Day,
+    };
     // establish initial state of outputs
     oc.show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());
+    oc.change_brightness(SCILSBrightness::Day, io_cfg.clone());
 
     let send_queue: VecDeque<SCITelegram> = VecDeque::new();
     let lock_queue = RwLock::new(send_queue);
@@ -202,7 +213,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .try_into()
             .unwrap_or_else(|e| panic!("Could not convert packet into SCITelegram: {:?}", e));
         let mut locked_send_queue = receive_lock_queue.write().unwrap();
-        for sci_response in handle_incoming_telegram(&mut oc,sci_telegram, &mut conn_state, io_cfg.clone())
+        for sci_response in
+            handle_incoming_telegram(&mut oc, sci_telegram, &mut conn_state, io_cfg.clone())
         {
             locked_send_queue.push_back(sci_response);
         }

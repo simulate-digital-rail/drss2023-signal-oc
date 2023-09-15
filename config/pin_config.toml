@@ -1,5 +1,6 @@
 number_of_pins= 4
 pins= ["O_1", "O_2", "O_3", "O_4"]
+day_night_pin= "O_7"
 # sci signals supported:
 # - Hp0,
 # - Hp0PlusSh1
