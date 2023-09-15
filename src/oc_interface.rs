@@ -2,6 +2,8 @@ use crate::io_config::PinConfig;
 use picontrol::bindings::SPIValue;
 use picontrol::PiControl;
 use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
+use chrono::prelude::*;
+
 pub struct OC {
     pub main_aspect: SCILSMain,
     pub main_aspect_string: String,
@@ -91,12 +93,12 @@ impl OC {
                 let pin = cfg.pins_input.get(index).unwrap();
                 let var_data = pc.find_variable(&pin);
                 let res = pc.read(var_data.i16uAddress.into(), 1);
-                println!("{}: {:?}", pin, res);
-                if res.iter().all(|&v| v == 0) {
-                    println!("NO INPUT SIGNAL FOUND, TRY TO USE THE BACKUP LINE!");
+                if res.iter().all(|&v| v == 0) && *value == 1 {
+                    println!("___________________________________________________");
+                    println!("{:?} NO INPUT SIGNAL FOUND AT {}, TRY TO USE THE BACKUP LINE!", Local::now().to_string(), pin);
                     let backup_pin = cfg.pins_output_backup.get(index).unwrap();
                     set_pin_value(&mut pc, value, &backup_pin);
-                }
+                } else { println!("NO ERRORS FOUND") }
             }
         }
     }

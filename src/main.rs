@@ -186,7 +186,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut locked_oc = main_lock_oc.write().unwrap();
         locked_oc.show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());
     }
-
+    //scheduler.run_pending();
+    let thread = scheduler.watch_thread(Duration::from_millis(1000));
     let send_queue: VecDeque<SCITelegram> = VecDeque::new();
     let lock_queue = RwLock::new(send_queue);
     let receive_lock_queue = Arc::new(lock_queue);
@@ -239,6 +240,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut locked_oc = main_lock_oc.write().unwrap();
         locked_oc.show_signal_aspect(most_restrictive_aspect, io_cfg.clone());
     }
-
+    //stop signal checks
+    thread.stop();
     Ok(())
 }
