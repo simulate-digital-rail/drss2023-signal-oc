@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use crate::io_config::PinConfig;
+use chrono::Local;
 use picontrol::bindings::SPIValue;
 use picontrol::PiControl;
-use sci_rs::scils::{SCILSMain, SCILSSignalAspect, SCILSBrightness};
-use chrono::prelude::*;
+use sci_rs::scils::{SCILSBrightness, SCILSMain, SCILSSignalAspect};
+use std::collections::HashMap;
 
 pub struct OC {
     pub main_aspect: SCILSMain,
@@ -104,16 +104,24 @@ impl OC {
                         println!("{} WARN: NO INPUT SIGNAL FOUND AT {}, BACKUP LINE ALREADY ACTIVE ON {}",
                                  Local::now().format("%d-%m-%Y %H:%M:%S").to_string(), pin, self.backup_map.get(pin).unwrap());
                     } else {
-                        println!("{} ERROR: NO INPUT SIGNAL FOUND AT {}, TRY TO USE THE BACKUP LINE!", Local::now().format("%d-%m-%Y %H:%M:%S").to_string(), pin);
+                        println!(
+                            "{} ERROR: NO INPUT SIGNAL FOUND AT {}, TRYING TO USE THE BACKUP LINE!",
+                            Local::now().format("%d-%m-%Y %H:%M:%S").to_string(),
+                            pin
+                        );
                         let backup_pin = cfg.pins_output_backup.get(index).unwrap();
                         set_pin_value(&mut pc, value, &backup_pin);
-                        self.backup_map.insert(pin.to_string(), backup_pin.to_string());
+                        self.backup_map
+                            .insert(pin.to_string(), backup_pin.to_string());
                     }
                     error_found = true;
                 }
             }
             if !error_found {
-                println!("{} Signal OK! No errors found.", Local::now().format("%d-%m-%Y %H:%M:%S").to_string());
+                println!(
+                    "{} Signal OK! No errors found.",
+                    Local::now().format("%d-%m-%Y %H:%M:%S").to_string()
+                );
             }
             println!("___________________________________________________");
         }
@@ -122,20 +130,13 @@ impl OC {
     pub fn change_brightness(&mut self, brightness: SCILSBrightness, cfg: PinConfig) {
         println!("Signal brightness is now {:?}", brightness);
         self.brightness = brightness;
-        let value = if brightness == SCILSBrightness::Night {
+        let pin_value = if brightness == SCILSBrightness::Night {
             0
         } else {
             1
         };
-
         let pc = PiControl::new().unwrap();
-        let var_data = pc.find_variable(&cfg.day_night_pin);
-        let mut val = SPIValue {
-            i16uAddress: var_data.i16uAddress,
-            i8uBit: var_data.i8uBit,
-            i8uValue: value,
-        };
-        pc.set_bit_value(&mut val);
+        set_pin_value(&mut pc, pin_value, &&cfg.day_night_pin);
     }
 
     pub fn brightness_status(&self) -> SCILSBrightness {

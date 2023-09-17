@@ -174,12 +174,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RastaClient::connect(format!("http://{}:{}", bridge_ip_addr, bridge_port)).await?;
     println!("OC software started!");
 
-
     let oc = oc_interface::OC {
         main_aspect: Default::default(),
         main_aspect_string: "Off".to_string(),
         brightness: SCILSBrightness::Day,
-        backup_map: HashMap::new()
+        backup_map: HashMap::new(),
     };
     let lock_oc = RwLock::new(oc);
     let main_lock_oc = Arc::new(lock_oc);
@@ -197,8 +196,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         locked_oc.show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());
         locked_oc.change_brightness(SCILSBrightness::Day, io_cfg.clone());
     }
-    //scheduler.run_pending();
-    let thread = scheduler.watch_thread(Duration::from_millis(5000));
+
+    let check_thread = scheduler.watch_thread(Duration::from_millis(5000));
     let send_queue: VecDeque<SCITelegram> = VecDeque::new();
     let lock_queue = RwLock::new(send_queue);
     let receive_lock_queue = Arc::new(lock_queue);
@@ -251,7 +250,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut locked_oc = main_lock_oc.write().unwrap();
         locked_oc.show_signal_aspect(most_restrictive_aspect, io_cfg.clone());
     }
+
     //stop signal checks
-    thread.stop();
+    check_thread.stop();
     Ok(())
 }
