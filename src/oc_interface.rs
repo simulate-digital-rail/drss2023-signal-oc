@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::io_config::PinConfig;
 use picontrol::bindings::SPIValue;
 use picontrol::PiControl;
-use sci_rs::scils::{SCILSMain, SCILSSignalAspect};
+use sci_rs::scils::{SCILSMain, SCILSSignalAspect, SCILSBrightness};
 use chrono::prelude::*;
 
 pub struct OC {
@@ -116,6 +116,7 @@ impl OC {
                 println!("{} Signal OK! No errors found.", Local::now().format("%d-%m-%Y %H:%M:%S").to_string());
             }
         }
+    }
 
     pub fn change_brightness(&mut self, brightness: SCILSBrightness, cfg: PinConfig) {
         println!("Signal brightness is now {:?}", brightness);
@@ -138,6 +139,5 @@ impl OC {
 
     pub fn brightness_status(&self) -> SCILSBrightness {
         self.brightness
-
     }
 }

@@ -195,7 +195,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // establish initial state of outputs
         let mut locked_oc = main_lock_oc.write().unwrap();
         locked_oc.show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());
-        lockes.oc.change_brightness(SCILSBrightness::Day, io_cfg.clone());
+        locked_oc.change_brightness(SCILSBrightness::Day, io_cfg.clone());
     }
     //scheduler.run_pending();
     let thread = scheduler.watch_thread(Duration::from_millis(5000));
