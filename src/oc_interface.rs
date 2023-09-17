@@ -101,10 +101,10 @@ impl OC {
                 let res = pc.read(var_data.i16uAddress.into(), 1);
                 if res.iter().all(|&v| v == 0) && *value == 1 {
                     if self.backup_map.contains_key(pin) {
-                        println!("{} NO INPUT SIGNAL FOUND AT {}, BACKUP LINE ALREADY ACTIVE ON {}",
+                        println!("{} WARN: NO INPUT SIGNAL FOUND AT {}, BACKUP LINE ALREADY ACTIVE ON {}",
                                  Local::now().format("%d-%m-%Y %H:%M:%S").to_string(), pin, self.backup_map.get(pin).unwrap());
                     } else {
-                        println!("{} NO INPUT SIGNAL FOUND AT {}, TRY TO USE THE BACKUP LINE!", Local::now().format("%d-%m-%Y %H:%M:%S").to_string(), pin);
+                        println!("{} ERROR: NO INPUT SIGNAL FOUND AT {}, TRY TO USE THE BACKUP LINE!", Local::now().format("%d-%m-%Y %H:%M:%S").to_string(), pin);
                         let backup_pin = cfg.pins_output_backup.get(index).unwrap();
                         set_pin_value(&mut pc, value, &backup_pin);
                         self.backup_map.insert(pin.to_string(), backup_pin.to_string());
