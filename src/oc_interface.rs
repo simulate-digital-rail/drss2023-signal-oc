@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::io_config::PinConfig;
 use picontrol::bindings::SPIValue;
 use picontrol::PiControl;
@@ -7,6 +8,7 @@ use chrono::prelude::*;
 pub struct OC {
     pub main_aspect: SCILSMain,
     pub main_aspect_string: String,
+    pub backup_map: HashMap<String, String>
 }
 
 fn show_signal_aspect_internal(oc: &mut OC, signal: &str, cfg: PinConfig) {
@@ -83,7 +85,7 @@ impl OC {
         signal_aspect
     }
 
-    pub fn check_signal(&self, cfg: &PinConfig) {
+    pub fn check_signal(&mut self, cfg: &PinConfig) {
         let signal = self.main_aspect_string.clone();
         println!("Check signal {}", signal);
         if cfg.signals.contains_key(&*signal) {
@@ -95,9 +97,15 @@ impl OC {
                 let res = pc.read(var_data.i16uAddress.into(), 1);
                 if res.iter().all(|&v| v == 0) && *value == 1 {
                     println!("___________________________________________________");
-                    println!("{:?} NO INPUT SIGNAL FOUND AT {}, TRY TO USE THE BACKUP LINE!", Local::now().to_string(), pin);
-                    let backup_pin = cfg.pins_output_backup.get(index).unwrap();
-                    set_pin_value(&mut pc, value, &backup_pin);
+                    if self.backup_map.contains_key(pin){
+                        println!("{:?} NO INPUT SIGNAL FOUND AT {}, BACKUP LINE ALREADY ACTIVE ON {}",
+                                 Local::now().to_string(), pin, self.backup_map.get(pin).unwrap());
+                    }else{
+                        println!("{:?} NO INPUT SIGNAL FOUND AT {}, TRY TO USE THE BACKUP LINE!", Local::now().to_string(), pin);
+                        let backup_pin = cfg.pins_output_backup.get(index).unwrap();
+                        set_pin_value(&mut pc, value, &backup_pin);
+                        self.backup_map.insert(pin.to_string(), backup_pin.to_string());
+                    }
                 } else { println!("NO ERRORS FOUND") }
             }
         }

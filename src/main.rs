@@ -5,7 +5,7 @@ pub mod rasta_grpc {
     tonic::include_proto!("sci");
 }
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
@@ -170,6 +170,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let oc = oc_interface::OC {
         main_aspect: Default::default(),
         main_aspect_string: "Off".to_string(),
+        backup_map: HashMap::new()
     };
     let lock_oc = RwLock::new(oc);
     let main_lock_oc = Arc::new(lock_oc);
