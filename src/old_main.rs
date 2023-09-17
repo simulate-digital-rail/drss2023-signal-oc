@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use rasta_rs::RastaListener;
 use sci_rs::scils::{SCILSBrightness, SCILSSignalAspect};
 use sci_rs::SCIListener;
@@ -20,6 +21,7 @@ fn main() {
     let mut oc = oc_interface::OC {
         main_aspect: Default::default(),
         main_aspect_string: "Off".to_string(),
+        backup_map: HashMap::new()
     };
 
     receiver

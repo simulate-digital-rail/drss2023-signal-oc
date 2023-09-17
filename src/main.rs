@@ -179,8 +179,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let check_io_cfg = io_cfg.clone();
     let mut scheduler = Scheduler::new();
     scheduler
-        .every(1.seconds())
-        .run(move || check_lock_oc.read().unwrap().check_signal(&check_io_cfg));
+        .every(5.seconds())
+        .run(move || check_lock_oc.write().unwrap().check_signal(&check_io_cfg));
 
     {
         // establish initial state of outputs
@@ -188,7 +188,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         locked_oc.show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());
     }
     //scheduler.run_pending();
-    let thread = scheduler.watch_thread(Duration::from_millis(1000));
+    let thread = scheduler.watch_thread(Duration::from_millis(5000));
     let send_queue: VecDeque<SCITelegram> = VecDeque::new();
     let lock_queue = RwLock::new(send_queue);
     let receive_lock_queue = Arc::new(lock_queue);
