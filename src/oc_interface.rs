@@ -118,7 +118,7 @@ impl OC {
         }
     }
 
-    pub fn change_brightness(&mut self, brightness: SCILSBrightness, cfg: PinConfig) {
+       pub fn change_brightness(&mut self, brightness: SCILSBrightness, cfg: PinConfig) {
         println!("Signal brightness is now {:?}", brightness);
         self.brightness = brightness;
         let value = if brightness == SCILSBrightness::Night {
@@ -132,7 +132,7 @@ impl OC {
         let mut val = SPIValue {
             i16uAddress: var_data.i16uAddress,
             i8uBit: var_data.i8uBit,
-            i8uValue: *value,
+            i8uValue: value,
         };
         pc.set_bit_value(&mut val);
     }
@@ -140,4 +140,5 @@ impl OC {
     pub fn brightness_status(&self) -> SCILSBrightness {
         self.brightness
     }
+
 }
