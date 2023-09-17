@@ -5,10 +5,11 @@ pub mod rasta_grpc {
     tonic::include_proto!("sci");
 }
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
+use clokwerk::{Scheduler, TimeUnits};
 use io_config::PinConfig;
 use md5;
 use rasta_grpc::rasta_client::RastaClient;
@@ -151,6 +152,7 @@ fn handle_incoming_telegram(
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let io_cfg = io_config::get_config(3);
+
     let most_restrictive_aspect = SCILSSignalAspect::new(
         SCILSMain::Ks2,
         Default::default(),
@@ -172,14 +174,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RastaClient::connect(format!("http://{}:{}", bridge_ip_addr, bridge_port)).await?;
     println!("OC software started!");
 
-    let mut oc = oc_interface::OC {
+    let oc = oc_interface::OC {
         main_aspect: Default::default(),
+        main_aspect_string: "Off".to_string(),
         brightness: SCILSBrightness::Day,
+        backup_map: HashMap::new(),
     };
-    // establish initial state of outputs
-    oc.show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());
-    oc.change_brightness(SCILSBrightness::Day, io_cfg.clone());
+    let lock_oc = RwLock::new(oc);
+    let main_lock_oc = Arc::new(lock_oc);
+    let check_lock_oc = main_lock_oc.clone();
 
+    let check_io_cfg = io_cfg.clone();
+    let mut scheduler = Scheduler::new();
+    scheduler
+        .every(5.seconds())
+        .run(move || check_lock_oc.write().unwrap().check_signal(&check_io_cfg));
+
+    {
+        // establish initial state of outputs
+        let mut locked_oc = main_lock_oc.write().unwrap();
+        locked_oc.show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());
+        locked_oc.change_brightness(SCILSBrightness::Day, io_cfg.clone());
+    }
+
+    let check_thread = scheduler.watch_thread(Duration::from_millis(5000));
     let send_queue: VecDeque<SCITelegram> = VecDeque::new();
     let lock_queue = RwLock::new(send_queue);
     let receive_lock_queue = Arc::new(lock_queue);
@@ -213,9 +231,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .try_into()
             .unwrap_or_else(|e| panic!("Could not convert packet into SCITelegram: {:?}", e));
         let mut locked_send_queue = receive_lock_queue.write().unwrap();
-        for sci_response in
-            handle_incoming_telegram(&mut oc, sci_telegram, &mut conn_state, io_cfg.clone())
-        {
+        let mut locked_oc = main_lock_oc.write().unwrap();
+        for sci_response in handle_incoming_telegram(
+            &mut locked_oc,
+            sci_telegram,
+            &mut conn_state,
+            io_cfg.clone(),
+        ) {
             locked_send_queue.push_back(sci_response);
         }
         if conn_state == InterlockingConnectionState::Terminated {
@@ -224,7 +246,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // fallback when connection is interrupted
-    oc.show_signal_aspect(most_restrictive_aspect, io_cfg.clone());
+    {
+        let mut locked_oc = main_lock_oc.write().unwrap();
+        locked_oc.show_signal_aspect(most_restrictive_aspect, io_cfg.clone());
+    }
 
+    //stop signal checks
+    check_thread.stop();
     Ok(())
 }

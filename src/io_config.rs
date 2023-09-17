@@ -7,7 +7,9 @@ use std::path::Path;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PinConfig {
     number_of_pins: usize,
-    pub(crate) pins: Vec<String>,
+    pub(crate) pins_output: Vec<String>,
+    pub(crate) pins_output_backup: Vec<String>,
+    pub(crate) pins_input: Vec<String>,
     pub(crate) day_night_pin: String,
     pub(crate) signals: HashMap<String, Vec<u8>>,
 }
@@ -20,7 +22,19 @@ impl Default for PinConfig {
 
         Self {
             number_of_pins: 4,
-            pins: vec![
+            pins_output: vec![
+                "O_1".to_string(),
+                "O_2".to_string(),
+                "O_3".to_string(),
+                "O_4".to_string(),
+            ],
+            pins_output_backup: vec![
+                "O_1".to_string(),
+                "O_2".to_string(),
+                "O_3".to_string(),
+                "O_4".to_string(),
+            ],
+            pins_input: vec![
                 "O_1".to_string(),
                 "O_2".to_string(),
                 "O_3".to_string(),
@@ -56,7 +70,10 @@ pub fn get_config(config_arg_pos: usize) -> PinConfig {
     } else {
         cfg = PinConfig::from_config_file(config_file_path).unwrap();
         println!("CONFIG FILE:{:?}", cfg.clone());
-        if cfg.pins.len() != cfg.number_of_pins {
+        if cfg.pins_output.len() != cfg.number_of_pins
+            || cfg.pins_input.len() != cfg.number_of_pins
+            || cfg.pins_output_backup.len() != cfg.number_of_pins
+        {
             eprintln!("Error: NUMBER OF PINS DOES NOT MATCH, PLEASE CHECK THE CONFIG FILE!");
             std::process::exit(1);
         }

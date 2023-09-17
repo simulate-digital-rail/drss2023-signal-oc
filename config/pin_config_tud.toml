@@ -1,7 +1,7 @@
-number_of_pins=4
-pins_output=["O_1", "O_2", "O_3", "O_14"]
-pins_output_backup=["O_11", "O_12", "O_13", "O_4"]
-pins_input=["I_1", "I_2", "I_3", "I_14"]
+number_of_pins=3
+pins_output=["O_1", "O_3", "O_5"]
+pins_output_backup=["O_2", "O_4", "O_6"]
+pins_input=["I_1", "I_2", "I_3"]
 day_night_pin= "O_7"
 # sci signals supported:
 # - Hp0,
@@ -21,4 +21,4 @@ day_night_pin= "O_7"
 # - Vr1
 # - Vr2
 # - Off
-signals={"Off"=[0,0,0,0], "Ks1"=[0,1,0,0], "Ks2"=[0,0,1,0]}
+signals={"Off"=[0,0,0], "Ks1"=[1,0,0], "Ks2"=[0,1,0]}

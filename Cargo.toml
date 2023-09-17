@@ -32,6 +32,8 @@ async-stream = "0.2"
 md5 = "0.7.0"
 serde = { version = "1.0", features = ["derive"] }
 config-file = "0.2.3"
+clokwerk = "0.4.0"
+chrono = "0.4.30"
 
 [dependencies.sci-rs]
 git = "https://github.com/mese96/rasta-rs"
