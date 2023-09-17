@@ -115,10 +115,11 @@ impl OC {
             if !error_found {
                 println!("{} Signal OK! No errors found.", Local::now().format("%d-%m-%Y %H:%M:%S").to_string());
             }
+            println!("___________________________________________________");
         }
     }
 
-       pub fn change_brightness(&mut self, brightness: SCILSBrightness, cfg: PinConfig) {
+    pub fn change_brightness(&mut self, brightness: SCILSBrightness, cfg: PinConfig) {
         println!("Signal brightness is now {:?}", brightness);
         self.brightness = brightness;
         let value = if brightness == SCILSBrightness::Night {
@@ -140,5 +141,4 @@ impl OC {
     pub fn brightness_status(&self) -> SCILSBrightness {
         self.brightness
     }
-
 }
