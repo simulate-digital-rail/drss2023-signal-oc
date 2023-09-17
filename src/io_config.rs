@@ -10,6 +10,7 @@ pub struct PinConfig {
     pub(crate) pins_output: Vec<String>,
     pub(crate) pins_output_backup: Vec<String>,
     pub(crate) pins_input: Vec<String>,
+    pub(crate) day_night_pin: String,
     pub(crate) signals: HashMap<String, Vec<u8>>,
 }
 
@@ -39,6 +40,7 @@ impl Default for PinConfig {
                 "O_3".to_string(),
                 "O_4".to_string(),
             ],
+            day_night_pin: "O_7".to_string(),
             signals: HashMap::from([
                 ("Off".to_string(), off_pins),
                 ("Ks1".to_string(), ks1_pins),

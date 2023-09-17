@@ -2,6 +2,7 @@ number_of_pins=4
 pins_output=["O_1", "O_2", "O_3", "O_14"]
 pins_output_backup=["O_11", "O_12", "O_13", "O_4"]
 pins_input=["I_1", "I_2", "I_3", "I_14"]
+day_night_pin= "O_7"
 # sci signals supported:
 # - Hp0,
 # - Hp0PlusSh1

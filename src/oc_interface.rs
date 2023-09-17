@@ -9,6 +9,7 @@ pub struct OC {
     pub main_aspect: SCILSMain,
     pub main_aspect_string: String,
     pub backup_map: HashMap<String, String>,
+    pub brightness: SCILSBrightness,
 }
 
 fn show_signal_aspect_internal(oc: &mut OC, signal: &str, cfg: PinConfig) {
@@ -115,5 +116,28 @@ impl OC {
                 println!("{} Signal OK! No errors found.", Local::now().format("%d-%m-%Y %H:%M:%S").to_string());
             }
         }
+
+    pub fn change_brightness(&mut self, brightness: SCILSBrightness, cfg: PinConfig) {
+        println!("Signal brightness is now {:?}", brightness);
+        self.brightness = brightness;
+        let value = if brightness == SCILSBrightness::Night {
+            0
+        } else {
+            1
+        };
+
+        let pc = PiControl::new().unwrap();
+        let var_data = pc.find_variable(&cfg.day_night_pin);
+        let mut val = SPIValue {
+            i16uAddress: var_data.i16uAddress,
+            i8uBit: var_data.i8uBit,
+            i8uValue: *value,
+        };
+        pc.set_bit_value(&mut val);
+    }
+
+    pub fn brightness_status(&self) -> SCILSBrightness {
+        self.brightness
+
     }
 }

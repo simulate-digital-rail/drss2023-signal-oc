@@ -63,10 +63,17 @@ fn handle_incoming_telegram(
             oc.signal_aspect_status(),
         )]
     } else if sci_telegram.message_type == SCIMessageType::scils_change_brightness() {
+        let brightness_change = SCILSBrightness::try_from(sci_telegram.payload.data[0]).unwrap();
         println!(
-            "Interlocking commanded to change brightness, but this is not implemented for this OC!"
+            "Received change brightness telegram: changing brightness to {:?}",
+            brightness_change
         );
-        vec![]
+        oc.change_brightness(brightness_change, io_cfg.clone());
+        vec![SCITelegram::scils_brightness_status(
+            &*sci_telegram.receiver,
+            &*sci_telegram.sender,
+            oc.brightness_status(),
+        )]
     } else if sci_telegram.message_type == SCIMessageType::sci_version_request() {
         let check_result = check_version(sci_telegram.payload.data[0]);
         *state = InterlockingConnectionState::VersionResponseSent;
@@ -116,7 +123,7 @@ fn handle_incoming_telegram(
             SCITelegram::scils_brightness_status(
                 &*sci_telegram.receiver,
                 &*sci_telegram.sender,
-                SCILSBrightness::Day,
+                oc.brightness_status(),
             ),
             SCITelegram::status_finish(
                 ProtocolType::SCIProtocolLS,
@@ -167,9 +174,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RastaClient::connect(format!("http://{}:{}", bridge_ip_addr, bridge_port)).await?;
     println!("OC software started!");
 
+
     let oc = oc_interface::OC {
         main_aspect: Default::default(),
         main_aspect_string: "Off".to_string(),
+        brightness: SCILSBrightness::Day,
         backup_map: HashMap::new()
     };
     let lock_oc = RwLock::new(oc);
@@ -186,6 +195,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // establish initial state of outputs
         let mut locked_oc = main_lock_oc.write().unwrap();
         locked_oc.show_signal_aspect(most_restrictive_aspect.clone(), io_cfg.clone());
+        lockes.oc.change_brightness(SCILSBrightness::Day, io_cfg.clone());
     }
     //scheduler.run_pending();
     let thread = scheduler.watch_thread(Duration::from_millis(5000));
